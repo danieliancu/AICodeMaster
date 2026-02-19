@@ -11,9 +11,9 @@ export const DEFAULT_LESSON_ID = "basic-layout";
 export const LESSONS: Lesson[] = [
   {
     id: "basic-layout",
-    name: "Basic Page Structure with Header, Main, and Footer",
+    name: "Basic Page Structure",
     exercise: {
-      title: "Basic Page Structure with Header, Main, and Footer",
+      title: "Basic Page Structure",
       description: "Construieste o pagina simpla cu header, continut principal si footer.",
       targetHtml: "<header><h1>My Website</h1><nav><a href='#'>Home</a><a href='#'>About</a><a href='#'>Contact</a></nav></header><main><section class='hero'><h2>Welcome</h2><p>Build modern pages with HTML and CSS.</p></section></main><footer>Copyright 2026</footer>",
       targetCss: "*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#1f2937}header{background:#4caf50;color:#fff;padding:24px 16px;text-align:center}nav{display:flex;gap:24px;justify-content:center;margin-top:10px}nav a{color:#fff;text-decoration:none;font-weight:700}main{padding:24px;display:flex;justify-content:center}.hero{max-width:640px;background:#fff;border-radius:12px;padding:20px;box-shadow:0 8px 20px rgba(0,0,0,.08)}footer{text-align:center;padding:14px;background:#111827;color:#e5e7eb}",
@@ -54,6 +54,25 @@ export const LESSONS: Lesson[] = [
         "Foloseste width:min(92vw, 360px) pentru responsive.",
         "Aplica un shadow discret si colturi rotunjite pe card.",
         "Aliniaza pretul si butonul pe acelasi rand cu flex.",
+      ],
+    },
+  },
+  {
+    id: "pocket-calculator",
+    name: "Simple Pocket Calculator",
+    exercise: {
+      title: "Simple Pocket Calculator",
+      description: "Build a basic pocket calculator with number buttons and four operations.",
+      targetHtml:
+        "<div class='calc'><div class='screen' id='screen'>0</div><div class='keys'><button class='key op' data-value='C'>C</button><button class='key op' data-value='/'>&divide;</button><button class='key op' data-value='*'>&times;</button><button class='key op' data-value='-'>&minus;</button><button class='key' data-value='7'>7</button><button class='key' data-value='8'>8</button><button class='key' data-value='9'>9</button><button class='key op' data-value='+'>+</button><button class='key' data-value='4'>4</button><button class='key' data-value='5'>5</button><button class='key' data-value='6'>6</button><button class='key equal' data-value='='>=</button><button class='key' data-value='1'>1</button><button class='key' data-value='2'>2</button><button class='key' data-value='3'>3</button><button class='key' data-value='0'>0</button><button class='key' data-value='.'>.</button></div></div>",
+      targetCss:
+        "body{margin:0;min-height:100vh;display:grid;place-items:center;background:linear-gradient(145deg,#111827,#0f172a);font-family:system-ui}.calc{width:min(92vw,320px);background:#1f2937;border:1px solid #374151;border-radius:16px;padding:14px;box-shadow:0 18px 40px rgba(0,0,0,.45)}.screen{background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:10px;min-height:64px;padding:12px;font-size:30px;font-weight:700;text-align:right;display:flex;align-items:flex-end;justify-content:flex-end;overflow:hidden}.keys{margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.key{height:52px;border:none;border-radius:10px;background:#111827;color:#f8fafc;font-size:18px;font-weight:700;cursor:pointer}.key:hover{background:#0b1220}.op{background:#2563eb}.op:hover{background:#1d4ed8}.equal{background:#16a34a;grid-row:span 2;height:112px}.equal:hover{background:#15803d}",
+      targetJs:
+        "const screen=document.getElementById('screen');const keys=document.querySelectorAll('.key');let expression='';keys.forEach((btn)=>{btn.addEventListener('click',()=>{const value=btn.getAttribute('data-value');if(!value)return;if(value==='C'){expression='';screen.textContent='0';return;}if(value==='='){try{expression=String(Function(`return (${expression||0})`)());screen.textContent=expression;}catch{expression='';screen.textContent='Error';}return;}expression+=value;screen.textContent=expression;});});",
+      hints: [
+        "Create a calculator wrapper with a screen and a grid of buttons.",
+        "Use grid with 4 columns for keys and make = button taller.",
+        "Update screen text on click; clear with C and evaluate on =.",
       ],
     },
   },
