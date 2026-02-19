@@ -1,0 +1,5 @@
+{
+  "name": "AI Code Master",
+  "description": "An interactive AI-powered platform where a teacher guides you through HTML/CSS/JS exercises with real-time audio feedback.",
+  "requestFramePermissions": ["microphone"]
+}
