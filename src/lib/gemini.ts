@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { getLanguageInstruction, getTargetPanelLabel, type AiLanguage } from "@/src/lib/languages";
-import type { Exercise } from "@/src/lib/types";
+import type { Exercise, Technology } from "@/src/lib/types";
 
 function getAI() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -22,7 +22,8 @@ export async function generateExercise(theme: string): Promise<Exercise> {
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: `Generate a web development exercise based on the theme: "${theme}".
-Provide title, description, targetHtml, targetCss, targetJs and 3 hints.`,
+Provide title, description, technologies, targetHtml, targetCss, targetJs and 3 hints.
+Allowed technologies: html, css, javascript.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -30,12 +31,13 @@ Provide title, description, targetHtml, targetCss, targetJs and 3 hints.`,
         properties: {
           title: { type: Type.STRING },
           description: { type: Type.STRING },
+          technologies: { type: Type.ARRAY, items: { type: Type.STRING } },
           targetHtml: { type: Type.STRING },
           targetCss: { type: Type.STRING },
           targetJs: { type: Type.STRING },
           hints: { type: Type.ARRAY, items: { type: Type.STRING } },
         },
-        required: ["title", "description", "targetHtml", "targetCss", "targetJs", "hints"],
+        required: ["title", "description", "technologies", "targetHtml", "targetCss", "targetJs", "hints"],
       },
     },
   });
@@ -43,23 +45,70 @@ Provide title, description, targetHtml, targetCss, targetJs and 3 hints.`,
   return JSON.parse(requireText(response.text)) as Exercise;
 }
 
+function getExerciseTechnologies(exercise: Exercise): Technology[] {
+  const raw = exercise.technologies ?? ["html", "css", "javascript"];
+  return raw.filter((tech): tech is Technology => tech === "html" || tech === "css" || tech === "javascript");
+}
+
+function buildTechnologyContext(
+  exercise: Exercise,
+  userCode: { html?: string; css?: string; js?: string },
+  technologies: Technology[],
+) {
+  const rows: {
+    technology: Technology;
+    label: string;
+    targetValue: string;
+    studentValue: string | undefined;
+    targetHint?: string;
+  }[] = [
+    {
+      technology: "html",
+      label: "HTML",
+      targetValue: exercise.targetHtml,
+      studentValue: userCode.html,
+    },
+    {
+      technology: "css",
+      label: "CSS",
+      targetValue: exercise.targetCss,
+      studentValue: userCode.css,
+      targetHint: "(visual example styles)",
+    },
+    {
+      technology: "javascript",
+      label: "JS",
+      targetValue: exercise.targetJs,
+      studentValue: userCode.js,
+    },
+  ];
+
+  return rows
+    .map((row) => {
+      const title = row.targetHint ? `${row.label} ${row.targetHint}` : row.label;
+      if (technologies.includes(row.technology)) {
+        return `Target ${title}: ${row.targetValue}\nStudent ${row.label}: ${row.studentValue ?? ""}`;
+      }
+      return `Target ${title}: Not part of this lesson.\nStudent ${row.label}: Ignore, ${row.label} is not part of this lesson.`;
+    })
+    .join("\n");
+}
+
 export async function teacherFeedback(
   exercise: Exercise,
-  userCode: { html: string; css: string; js: string },
+  userCode: { html?: string; css?: string; js?: string },
   isRealTime: boolean,
   aiLanguage: AiLanguage,
 ): Promise<{ feedback: string; isCorrect: boolean }> {
   const ai = getAI();
   const targetPanelLabel = getTargetPanelLabel(aiLanguage);
+  const technologies = getExerciseTechnologies(exercise);
+  const technologyContext = buildTechnologyContext(exercise, userCode, technologies);
   const prompt = `You are an expert AI Web Development Teacher.
 Exercise: ${exercise.title}
 Description: ${exercise.description}
-Target HTML: ${exercise.targetHtml}
-Target CSS (visual example styles): ${exercise.targetCss}
-Target JS: ${exercise.targetJs}
-Student HTML: ${userCode.html}
-Student CSS: ${userCode.css}
-Student JS: ${userCode.js}
+Technologies in this lesson: ${technologies.join(", ")}
+${technologyContext}
 ${
   isRealTime
     ? "The student is typing now. Give feedback under 20 words."
@@ -95,22 +144,20 @@ Return JSON with feedback and isCorrect.`;
 
 export async function chatResponse(
   exercise: Exercise,
-  userCode: { html: string; css: string; js: string },
+  userCode: { html?: string; css?: string; js?: string },
   userQuestion: string,
   chatHistory: { role: "user" | "model"; text: string }[],
   aiLanguage: AiLanguage,
 ): Promise<string> {
   const ai = getAI();
   const targetPanelLabel = getTargetPanelLabel(aiLanguage);
+  const technologies = getExerciseTechnologies(exercise);
+  const technologyContext = buildTechnologyContext(exercise, userCode, technologies);
   const prompt = `You are an expert AI Web Development Teacher.
 Exercise: ${exercise.title}
 Description: ${exercise.description}
-Target HTML: ${exercise.targetHtml}
-Target CSS (visual example styles): ${exercise.targetCss}
-Target JS: ${exercise.targetJs}
-Student HTML: ${userCode.html}
-Student CSS: ${userCode.css}
-Student JS: ${userCode.js}
+Technologies in this lesson: ${technologies.join(", ")}
+${technologyContext}
 Question: ${userQuestion}
 Guide the student, do not give the complete final solution.
 If the code is still starter boilerplate/minimal unchanged template, do not praise it.

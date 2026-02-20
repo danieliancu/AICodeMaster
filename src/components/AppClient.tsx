@@ -12,13 +12,21 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import ReactMarkdown from 'react-markdown';
 import { Exercise, getTeacherFeedback, getChatResponse } from '../services/geminiService';
 import type { AiLanguage } from '@/src/lib/languages';
+import type { LessonProgress, Technology } from '@/src/lib/types';
 
 type SettingsResponse = {
   defaultLessonId: string;
   selectedLessonId: string;
   selectedAiLanguage: AiLanguage;
   aiLanguageOptions: { code: AiLanguage; label: string }[];
-  lessons: { id: string; name: string; title: string; description: string }[];
+  lessons: {
+    id: string;
+    name: string;
+    title: string;
+    description: string;
+    progress: LessonProgress;
+    technologies: Technology[];
+  }[];
   exercise_json: string | null;
 };
 
@@ -340,7 +348,7 @@ const STARTER_CODE: Record<AiLanguage, { html: string; css: string; js: string }
 
 const LESSON_LABELS: Record<AiLanguage, Record<string, { name: string; description: string }>> = {
   ro: {
-    "basic-layout": { name: "Structura de pagina: Header, Main, Footer", description: "Construieste o pagina simpla cu header, continut principal si footer." },
+    "basic-layout": { name: "Structura de pagina de baza", description: "Construieste o pagina simpla cu header, continut principal si footer." },
     "tic-tac-toe-grid": { name: "Joc de X si O (Tic Tac Toe)", description: "Recreeaza interfata unui joc 3x3 cu stare pentru randul curent." },
     "product-card": { name: "Card de produs responsive", description: "Construieste un card de produs modern, cu buton de actiune." },
     "pocket-calculator": { name: "Calculator simplu de buzunar", description: "Creeaza un calculator simplu cu cifre, operatii si buton de egal." },
@@ -407,6 +415,11 @@ const UI_TEXT: Record<
     launchLesson: string;
     defaultBadge: string;
     close: string;
+    progressLabel: string;
+    statusNotStarted: string;
+    statusInProgress: string;
+    statusCompleted: string;
+    technologiesLabel: string;
   }
 > = {
   ro: {
@@ -431,6 +444,11 @@ const UI_TEXT: Record<
     launchLesson: "Lanseaza lectia",
     defaultBadge: "Default",
     close: "Inchide",
+    progressLabel: "Progres",
+    statusNotStarted: "Neinceput",
+    statusInProgress: "In progress",
+    statusCompleted: "Finalizat",
+    technologiesLabel: "Limbaje folosite",
   },
   en: {
     newLesson: "New Lesson",
@@ -454,6 +472,11 @@ const UI_TEXT: Record<
     launchLesson: "Launch lesson",
     defaultBadge: "Default",
     close: "Close",
+    progressLabel: "Progress",
+    statusNotStarted: "Not started",
+    statusInProgress: "In progress",
+    statusCompleted: "Completed",
+    technologiesLabel: "Technology used",
   },
   es: {
     newLesson: "Nueva Lección",
@@ -477,6 +500,11 @@ const UI_TEXT: Record<
     launchLesson: "Iniciar lección",
     defaultBadge: "Predeterminado",
     close: "Cerrar",
+    progressLabel: "Progreso",
+    statusNotStarted: "No iniciado",
+    statusInProgress: "En progreso",
+    statusCompleted: "Finalizado",
+    technologiesLabel: "Tecnologia usada",
   },
   fr: {
     newLesson: "Nouvelle Leçon",
@@ -500,6 +528,11 @@ const UI_TEXT: Record<
     launchLesson: "Lancer la leçon",
     defaultBadge: "Par défaut",
     close: "Fermer",
+    progressLabel: "Progression",
+    statusNotStarted: "Non commence",
+    statusInProgress: "En cours",
+    statusCompleted: "Termine",
+    technologiesLabel: "Technologie utilisee",
   },
   de: {
     newLesson: "Neue Lektion",
@@ -523,6 +556,11 @@ const UI_TEXT: Record<
     launchLesson: "Lektion starten",
     defaultBadge: "Standard",
     close: "Schließen",
+    progressLabel: "Fortschritt",
+    statusNotStarted: "Nicht begonnen",
+    statusInProgress: "In Arbeit",
+    statusCompleted: "Abgeschlossen",
+    technologiesLabel: "Verwendete Technologie",
   },
   it: {
     newLesson: "Nuova Lezione",
@@ -546,6 +584,11 @@ const UI_TEXT: Record<
     launchLesson: "Avvia lezione",
     defaultBadge: "Predefinito",
     close: "Chiudi",
+    progressLabel: "Progresso",
+    statusNotStarted: "Non iniziato",
+    statusInProgress: "In corso",
+    statusCompleted: "Completato",
+    technologiesLabel: "Tecnologia usata",
   },
   pt: {
     newLesson: "Nova Lição",
@@ -569,7 +612,19 @@ const UI_TEXT: Record<
     launchLesson: "Iniciar lição",
     defaultBadge: "Padrão",
     close: "Fechar",
+    progressLabel: "Progresso",
+    statusNotStarted: "Nao iniciado",
+    statusInProgress: "Em progresso",
+    statusCompleted: "Finalizado",
+    technologiesLabel: "Tecnologia usada",
   },
+};
+
+const PROGRESS_STEPS: LessonProgress[] = ['not_started', 'in_progress', 'completed'];
+const TECHNOLOGY_LABELS: Record<Technology, string> = {
+  html: 'HTML',
+  css: 'CSS',
+  javascript: 'JavaScript',
 };
 
 const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToken: number }) => {
@@ -577,6 +632,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   const [css, setCss] = useState(STARTER_CODE.ro.css);
   const [js, setJs] = useState(STARTER_CODE.ro.js);
   const [exercise, setExercise] = useState<Exercise | null>(null);
+  const [selectedLessonId, setSelectedLessonId] = useState('');
   const [aiLanguage, setAiLanguage] = useState<AiLanguage>('ro');
   const [isRealTime, setIsRealTime] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -610,12 +666,15 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
 
   const activeGuideStep = guideSteps[guideStepIndex];
   const isGuideOverlayActive = isGuideOpen && !isBelow1200;
+  const activeTechnologies = exercise?.technologies?.length ? exercise.technologies : ['html', 'css', 'javascript'];
+  const hasJavaScript = activeTechnologies.includes('javascript');
 
-  const resetLessonWorkspace = (language: AiLanguage = aiLanguage) => {
+  const resetLessonWorkspace = (language: AiLanguage = aiLanguage, technologies?: Technology[]) => {
     const starter = STARTER_CODE[language] ?? STARTER_CODE.ro;
+    const lessonTechnologies = technologies?.length ? technologies : ['html', 'css', 'javascript'];
     setHtml(starter.html);
     setCss(starter.css);
-    setJs(starter.js);
+    setJs(lessonTechnologies.includes('javascript') ? starter.js : '');
     setChatInput('');
     setChatMessages([]);
     setExpandedDetails({});
@@ -710,12 +769,12 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
     try {
       const res = await fetch('/api/settings');
       const data = (await res.json()) as SettingsResponse;
-      if (data.exercise_json) {
-        setExercise(JSON.parse(data.exercise_json));
-      }
+      setSelectedLessonId(data.selectedLessonId);
+      const nextExercise = data.exercise_json ? (JSON.parse(data.exercise_json) as Exercise) : null;
+      setExercise(nextExercise);
       const nextLanguage = data.selectedAiLanguage || 'ro';
       setAiLanguage(nextLanguage);
-      resetLessonWorkspace(nextLanguage);
+      resetLessonWorkspace(nextLanguage, nextExercise?.technologies);
     } catch (err) {
       console.error(err);
     } finally {
@@ -783,13 +842,25 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   const handleVerify = async (realTime = false) => {
     if (!exercise || checking) return;
     if (realTime && !isRealTime) return;
-    const snapshot = `${html}\n/*__CSS__*/\n${css}\n/*__JS__*/\n${js}`;
+    const snapshot = hasJavaScript ? `${html}\n/*__CSS__*/\n${css}\n/*__JS__*/\n${js}` : `${html}\n/*__CSS__*/\n${css}`;
     if (realTime && lastRealtimeSnapshotRef.current === snapshot) return;
 
     setChecking(true);
     try {
-      const result = await getTeacherFeedback(exercise, { html, css, js }, realTime, aiLanguage);
+      const userCode = hasJavaScript ? { html, css, js } : { html, css };
+      const result = await getTeacherFeedback(exercise, userCode, realTime, aiLanguage);
       appendModelMessageIfUnique(result.feedback);
+      if (result.isCorrect && selectedLessonId) {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lessonProgress: {
+              [selectedLessonId]: 'completed',
+            },
+          }),
+        });
+      }
       if (realTime) {
         lastRealtimeSnapshotRef.current = snapshot;
       }
@@ -810,9 +881,10 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
     setIsChatting(true);
 
     try {
+      const userCode = hasJavaScript ? { html, css, js } : { html, css };
       const response = await getChatResponse(
         exercise,
-        { html, css, js },
+        userCode,
         userMsg,
         chatMessages.map((m) => ({ role: m.role, text: m.text })),
         aiLanguage,
@@ -891,7 +963,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
     <html>
       <style>${css}</style>
       <body>${html}</body>
-      <script>${js}</script>
+      ${hasJavaScript ? `<script>${js}</script>` : ''}
     </html>
   `;
 
@@ -899,7 +971,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
     <html>
       <style>${exercise.targetCss}</style>
       <body>${exercise.targetHtml}</body>
-      <script>${exercise.targetJs}</script>
+      ${hasJavaScript ? `<script>${exercise.targetJs}</script>` : ''}
     </html>
   ` : '';
 
@@ -946,7 +1018,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
         )}
       </div>
 
-      <div className={`flex flex-col border-b border-zinc-800 transition-all duration-300 ${minimizedEditors.css ? 'h-12' : 'flex-1 min-h-0'}`}>
+      <div className={`flex flex-col ${hasJavaScript ? 'border-b border-zinc-800' : ''} transition-all duration-300 ${minimizedEditors.css ? 'h-12' : 'flex-1 min-h-0'}`}>
         <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
           <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">CSS</span>
           <button onClick={() => toggleEditor('css')} className="p-1 hover:bg-zinc-800 rounded text-zinc-500">
@@ -966,25 +1038,27 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
         )}
       </div>
 
-      <div className={`flex flex-col transition-all duration-300 ${minimizedEditors.js ? 'h-12' : 'flex-1 min-h-0'}`}>
-        <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
-          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Javascript</span>
-          <button onClick={() => toggleEditor('js')} className="p-1 hover:bg-zinc-800 rounded text-zinc-500">
-            {minimizedEditors.js ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
-          </button>
-        </div>
-        {!minimizedEditors.js && (
-          <div className="flex-1 overflow-auto p-4 font-mono">
-            <Editor
-              value={js}
-              onValueChange={setJs}
-              highlight={code => highlight(code, languages.javascript, 'javascript')}
-              padding={10}
-              className="min-h-full outline-none"
-            />
+      {hasJavaScript && (
+        <div className={`flex flex-col transition-all duration-300 ${minimizedEditors.js ? 'h-12' : 'flex-1 min-h-0'}`}>
+          <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Javascript</span>
+            <button onClick={() => toggleEditor('js')} className="p-1 hover:bg-zinc-800 rounded text-zinc-500">
+              {minimizedEditors.js ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+            </button>
           </div>
-        )}
-      </div>
+          {!minimizedEditors.js && (
+            <div className="flex-1 overflow-auto p-4 font-mono">
+              <Editor
+                value={js}
+                onValueChange={setJs}
+                highlight={code => highlight(code, languages.javascript, 'javascript')}
+                padding={10}
+                className="min-h-full outline-none"
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -1438,7 +1512,7 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
   const [defaultLessonId, setDefaultLessonId] = useState('');
   const [selectedAiLanguage, setSelectedAiLanguage] = useState<AiLanguage>('ro');
   const [aiLanguageOptions, setAiLanguageOptions] = useState<{ code: AiLanguage; label: string }[]>([]);
-  const [lessons, setLessons] = useState<{ id: string; name: string; title: string; description: string }[]>([]);
+  const [lessons, setLessons] = useState<SettingsResponse['lessons']>([]);
   const [saving, setSaving] = useState(false);
   const ui = UI_TEXT[selectedAiLanguage] ?? UI_TEXT.ro;
 
@@ -1475,10 +1549,10 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl"
+        className="w-full max-w-2xl max-h-[90vh] bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 mb-8">
+        <div className="flex items-center justify-between gap-3 px-8 pt-8 pb-4 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-zinc-800 rounded-lg">
               <Settings className="w-6 h-6 text-zinc-400" />
@@ -1494,12 +1568,17 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
           </button>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 px-8 pb-4 min-h-0 overflow-y-auto flex-1">
           <div>
             <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">{ui.savedLessons}</label>
             <div className="space-y-2">
               {lessons.map((lesson) => {
                 const localized = LESSON_LABELS[selectedAiLanguage]?.[lesson.id];
+                const progressLabelMap: Record<LessonProgress, string> = {
+                  not_started: ui.statusNotStarted,
+                  in_progress: ui.statusInProgress,
+                  completed: ui.statusCompleted,
+                };
                 return (
                 <label
                   key={lesson.id}
@@ -1510,13 +1589,43 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-zinc-100">{localized?.name || lesson.name}</p>
                       <p className="text-xs text-zinc-400 mt-1">{localized?.description || lesson.description}</p>
+                      <div className="mt-3 grid w-full grid-cols-2 gap-3">
+                        <div className="w-full min-w-0 rounded-lg border border-white/40 bg-white/10 p-2.5">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-white">{ui.progressLabel}</p>
+                          <div className="mt-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
+                            {PROGRESS_STEPS.map((step, index) => (
+                              <React.Fragment key={step}>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-[10px] font-semibold border ${
+                                    lesson.progress === step
+                                      ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                                      : 'bg-zinc-900 border-zinc-700 text-zinc-400'
+                                  }`}
+                                >
+                                  {progressLabelMap[step]}
+                                </span>
+                                {index < PROGRESS_STEPS.length - 1 && (
+                                  <span className="w-6 border-t border-dashed border-zinc-600" />
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="w-full min-w-0 rounded-lg border border-white/40 bg-white/10 p-2.5">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-white">{ui.technologiesLabel}</p>
+                          <div className="mt-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
+                            {lesson.technologies.map((technology) => (
+                              <span key={`${lesson.id}-${technology}`} className="px-2 py-1 rounded-full text-[10px] font-semibold bg-zinc-800 text-zinc-200 border border-zinc-700">
+                                {TECHNOLOGY_LABELS[technology]}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    {lesson.id === defaultLessonId && (
-                      <span className="text-[10px] uppercase tracking-wider bg-zinc-800 text-zinc-300 px-2 py-1 rounded-full">{ui.defaultBadge}</span>
-                    )}
                   </div>
                   <input
                     type="radio"
@@ -1546,23 +1655,23 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
               ))}
             </select>
           </div>
+        </div>
 
-          <div className="flex gap-3 pt-4">
-            <button 
-              onClick={onClose}
-              className="flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition-colors"
-            >
-              {ui.cancel}
-            </button>
-            <button 
-              onClick={handleSave}
-              disabled={saving || !selectedLessonId}
-              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
-              {ui.launchLesson}
-            </button>
-          </div>
+        <div className="flex gap-3 px-8 py-4 border-t border-zinc-800 shrink-0 bg-zinc-900 rounded-b-2xl">
+          <button 
+            onClick={onClose}
+            className="flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition-colors"
+          >
+            {ui.cancel}
+          </button>
+          <button 
+            onClick={handleSave}
+            disabled={saving || !selectedLessonId}
+            className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+            {ui.launchLesson}
+          </button>
         </div>
       </motion.div>
     </div>

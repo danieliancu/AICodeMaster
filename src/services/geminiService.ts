@@ -31,7 +31,7 @@ export type { Exercise };
 
 export async function getTeacherFeedback(
   exercise: Exercise,
-  userCode: { html: string; css: string; js: string },
+  userCode: { html?: string; css?: string; js?: string },
   isRealTime: boolean,
   aiLanguage: AiLanguage,
 ): Promise<{ feedback: string; isCorrect: boolean }> {
@@ -45,7 +45,7 @@ export async function getTeacherFeedback(
 
 export async function getChatResponse(
   exercise: Exercise,
-  userCode: { html: string; css: string; js: string },
+  userCode: { html?: string; css?: string; js?: string },
   userQuestion: string,
   chatHistory: { role: "user" | "model"; text: string }[],
   aiLanguage: AiLanguage,
