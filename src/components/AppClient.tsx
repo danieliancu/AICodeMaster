@@ -6,7 +6,7 @@ import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-markup';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-javascript';
-import { CheckCircle, MessageSquare, Settings, User, Sparkles, Loader2, Send, X, Minimize2, Maximize2, Menu } from 'lucide-react';
+import { CheckCircle, MessageSquare, Settings, User, Loader2, Send, X, Minimize2, Maximize2, Menu, CircleHelp, Mouse, Crosshair, Rocket } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import ReactMarkdown from 'react-markdown';
@@ -20,6 +20,284 @@ type SettingsResponse = {
   aiLanguageOptions: { code: AiLanguage; label: string }[];
   lessons: { id: string; name: string; title: string; description: string }[];
   exercise_json: string | null;
+};
+
+type GuideStepId = 'editors' | 'live' | 'target' | 'teacher' | 'modes';
+type GuideLanguageContent = {
+  howItWorks: string;
+  previous: string;
+  next: string;
+  finish: string;
+  steps: { id: GuideStepId; title: string; description: string }[];
+};
+
+const GUIDE_I18N: Record<AiLanguage, GuideLanguageContent> = {
+  ro: {
+    howItWorks: 'Cum functioneaza',
+    previous: 'Anterior',
+    next: 'Urmatorul',
+    finish: 'Finalizare',
+    steps: [
+      {
+        id: 'editors',
+        title: 'HTML/CSS/JS',
+        description:
+          'Zona de editor este punctul de plecare pentru toata lectia: structurezi pagina in HTML, controlezi stilul in CSS si adaugi comportament in JavaScript. Avantajul major este viteza de iterare, pentru ca orice modificare facuta aici se reflecta imediat in rezultat. In combinatie cu preview-ul live si cu obiectivul, poti compara rapid ce ai construit cu ce trebuie obtinut.',
+      },
+      {
+        id: 'live',
+        title: 'Rezultatul tau live',
+        description:
+          'Preview-ul live arata in timp real ce produce codul tau, fara rulare manuala sau refresh separat. Beneficiul este ca observi imediat diferentele de layout, spacing, culori sau comportament. Corelat cu editorul, vezi instant efectul fiecarei linii, iar corelat cu obiectivul poti ajusta fin implementarea pana cand cele doua rezultate devin cat mai apropiate.',
+      },
+      {
+        id: 'target',
+        title: 'Obiectiv',
+        description:
+          'Fereastra de obiectiv functioneaza ca referinta vizuala si functionala pentru exercitiul curent. Ajuta la prioritizare: intai compari structura, apoi stilizarea si la final interactiunile. In paralel cu rezultatul live si editorul, aceasta referinta reduce timpul pierdut pe presupuneri si iti ofera un standard clar dupa care validezi progresul.',
+      },
+      {
+        id: 'teacher',
+        title: 'Profesor AI',
+        description:
+          'Profesorul AI completeaza fluxul de lucru atunci cand ai nevoie de explicatii, feedback sau directie tehnica. Avantajul este asistenta contextuala, bazata pe exercitiul activ si pe codul scris. Folosit impreuna cu editorul, rezultatul live si obiectivul, chatul accelereaza rezolvarea blocajelor si te ajuta sa intelegi nu doar ce sa schimbi, ci si de ce.',
+      },
+      {
+        id: 'modes',
+        title: 'Intreaba profesorul / Asistenta in timp real',
+        description:
+          'Cele doua moduri controleaza cum primesti feedback. Intreaba profesorul declanseaza verificare la cerere, utila cand vrei validare punctuala dupa o schimbare importanta. Asistenta in timp real monitorizeaza continuu progresul si ofera ghidaj constant. Folosite corect impreuna, reduci incercarile inutile si ajustezi mai rapid codul in functie de obiectiv.',
+      },
+    ],
+  },
+  en: {
+    howItWorks: 'How it works',
+    previous: 'Previous',
+    next: 'Next',
+    finish: 'Finish',
+    steps: [
+      {
+        id: 'editors',
+        title: 'HTML/CSS/JS',
+        description:
+          'The editor area is the starting point of the lesson: HTML defines structure, CSS controls presentation, and JavaScript adds behavior. Its main advantage is iteration speed, because every change is reflected immediately in the rest of the workspace. Together with the live result and the target view, it creates a fast feedback loop for building and correcting your solution.',
+      },
+      {
+        id: 'live',
+        title: 'Your Live Result',
+        description:
+          'The live result updates in real time and shows exactly what your current code produces, without manual reruns. This helps you catch layout, spacing, color, and interaction issues right away. Connected to the editor and target view, it lets you verify each small change and progressively align your implementation with the expected outcome.',
+      },
+      {
+        id: 'target',
+        title: 'Target',
+        description:
+          'The target panel is the visual and functional reference for the exercise. It helps you prioritize what to match first: structure, styling, then behavior. When used alongside your live result and source code, it reduces guesswork and gives you a clear quality benchmark for deciding what still needs adjustment.',
+      },
+      {
+        id: 'teacher',
+        title: 'AI Teacher',
+        description:
+          'The AI Teacher is the support layer for explanations, feedback, and next-step guidance when you get stuck. Its key benefit is contextual help based on the active exercise and your current code. Combined with the editor, live result, and target view, it speeds up problem solving and improves understanding of both what to change and why.',
+      },
+      {
+        id: 'modes',
+        title: 'Ask the teacher / Real-time assistance',
+        description:
+          'These two buttons control how feedback is delivered. Ask the teacher runs an on-demand review, useful when you want a focused check after a meaningful update. Real-time assistance keeps guidance active while you work and helps catch issues earlier. Using both modes strategically creates faster iteration and a cleaner path to the target result.',
+      },
+    ],
+  },
+  es: {
+    howItWorks: 'Como funciona',
+    previous: 'Anterior',
+    next: 'Siguiente',
+    finish: 'Finalizar',
+    steps: [
+      {
+        id: 'editors',
+        title: 'HTML/CSS/JS',
+        description:
+          'La zona de edicion es el punto de partida de toda la leccion: HTML define la estructura, CSS controla el estilo y JavaScript agrega comportamiento. Su principal ventaja es la velocidad de iteracion, porque cada cambio se refleja de inmediato. En conjunto con el resultado en vivo y el objetivo, permite ajustar la solucion de forma rapida y precisa.',
+      },
+      {
+        id: 'live',
+        title: 'Tu Resultado en Vivo',
+        description:
+          'El resultado en vivo muestra en tiempo real lo que produce tu codigo actual, sin ejecuciones manuales adicionales. Esto facilita detectar diferencias de diseno, espaciado, colores o interacciones desde el primer momento. Al usarlo junto con el editor y el objetivo, cada ajuste se valida rapidamente contra el resultado esperado.',
+      },
+      {
+        id: 'target',
+        title: 'Objetivo',
+        description:
+          'La ventana de objetivo funciona como referencia visual y funcional del ejercicio. Ayuda a priorizar el trabajo: primero la estructura, luego el estilo y finalmente la logica interactiva. Combinada con el resultado en vivo y el codigo fuente, reduce suposiciones y ofrece un criterio claro para medir el progreso.',
+      },
+      {
+        id: 'teacher',
+        title: 'Profesor IA',
+        description:
+          'El Profesor IA complementa el flujo cuando necesitas explicaciones, retroalimentacion o direccion tecnica. La ventaja principal es la ayuda contextual basada en el ejercicio activo y en tu implementacion actual. Integrado con editor, resultado en vivo y objetivo, acelera la resolucion de bloqueos y mejora la comprension tecnica.',
+      },
+      {
+        id: 'modes',
+        title: 'Preguntar al profesor / Asistencia en tiempo real',
+        description:
+          'Estos dos botones definen como recibes feedback. Preguntar al profesor ejecuta una revision bajo demanda, ideal para validar cambios importantes en momentos clave. Asistencia en tiempo real mantiene orientacion continua mientras avanzas. Combinarlos de forma inteligente acelera la iteracion y mejora la alineacion con el objetivo del ejercicio.',
+      },
+    ],
+  },
+  fr: {
+    howItWorks: 'Comment ca marche',
+    previous: 'Precedent',
+    next: 'Suivant',
+    finish: 'Terminer',
+    steps: [
+      {
+        id: 'editors',
+        title: 'HTML/CSS/JS',
+        description:
+          "La zone d'edition est le point de depart de la lecon: HTML organise la structure, CSS gere la presentation et JavaScript ajoute le comportement. Son avantage principal est la rapidite d'iteration, car chaque modification est visible immediatement. Avec le resultat en direct et la cible, elle cree une boucle de feedback tres efficace.",
+      },
+      {
+        id: 'live',
+        title: 'Votre Resultat en Direct',
+        description:
+          "Le resultat en direct montre en temps reel ce que produit votre code actuel, sans relance manuelle. Cela permet d'identifier rapidement les ecarts de mise en page, d'espacement, de couleurs ou d'interactions. Relie a l'editeur et a la cible, il facilite des ajustements progressifs et precis.",
+      },
+      {
+        id: 'target',
+        title: 'Objectif',
+        description:
+          "La fenetre objectif sert de reference visuelle et fonctionnelle pour l'exercice. Elle aide a prioriser les corrections: structure, style puis comportement. Utilisee avec le resultat en direct et l'editeur, elle reduit les suppositions et fournit un standard clair pour evaluer l'avancement.",
+      },
+      {
+        id: 'teacher',
+        title: 'Professeur IA',
+        description:
+          "Le Professeur IA apporte une assistance contextualisee quand vous avez besoin d'explications, de feedback ou d'orientation technique. Son avantage est de s'appuyer sur l'exercice actif et votre code en cours. Combine aux autres panneaux, il accelere la resolution des blocages et renforce la comprehension.",
+      },
+      {
+        id: 'modes',
+        title: 'Demander au professeur / Assistance en temps reel',
+        description:
+          "Ces deux boutons definissent le mode de feedback. Demander au professeur lance une verification a la demande, pratique pour valider une etape importante. Assistance en temps reel maintient un accompagnement continu pendant le travail. Leur combinaison permet d'iterer plus vite et d'aligner plus efficacement votre resultat avec l'objectif.",
+      },
+    ],
+  },
+  de: {
+    howItWorks: 'So funktioniert es',
+    previous: 'Zuruck',
+    next: 'Weiter',
+    finish: 'Fertig',
+    steps: [
+      {
+        id: 'editors',
+        title: 'HTML/CSS/JS',
+        description:
+          'Der Editorbereich ist der Ausgangspunkt der Aufgabe: HTML bildet die Struktur, CSS steuert das Design und JavaScript liefert die Interaktivitat. Der groesste Vorteil ist die schnelle Iteration, weil jede Aenderung sofort sichtbar wird. Zusammen mit Live-Ergebnis und Zielansicht entsteht ein direkter Arbeitskreislauf zum Vergleichen und Verbessern.',
+      },
+      {
+        id: 'live',
+        title: 'Dein Live-Ergebnis',
+        description:
+          'Die Live-Ansicht zeigt in Echtzeit, was dein aktueller Code wirklich erzeugt, ohne manuelles Neuladen. Dadurch erkennst du Layout-, Abstands-, Farb- oder Interaktionsabweichungen sofort. In Kombination mit Editor und Zielansicht kannst du jeden Schritt unmittelbar pruefen und gezielt nachschaerfen.',
+      },
+      {
+        id: 'target',
+        title: 'Ziel',
+        description:
+          'Die Zielansicht dient als visuelle und funktionale Referenz fuer die aktuelle Uebung. Sie hilft bei der Priorisierung: zuerst Struktur, dann Styling, danach Verhalten. Gemeinsam mit Live-Ansicht und Quellcode reduziert sie Raterei und liefert einen klaren Massstab fuer den Fortschritt.',
+      },
+      {
+        id: 'teacher',
+        title: 'KI Lehrer',
+        description:
+          'Der KI-Lehrer unterstuetzt dich mit Erklaerungen, Feedback und konkreten naechsten Schritten, wenn du feststeckst. Der wichtigste Vorteil ist kontextbezogene Hilfe auf Basis der aktiven Aufgabe und deines aktuellen Codes. Zusammen mit den anderen Bereichen beschleunigt das die Problemloesung und verbessert dein Verstaendnis.',
+      },
+      {
+        id: 'modes',
+        title: 'Lehrer fragen / Echtzeit-Hilfe',
+        description:
+          'Diese beiden Schaltflaechen steuern, wie Rueckmeldung erfolgt. Lehrer fragen startet eine gezielte Pruefung auf Anfrage und ist ideal fuer punktuelle Validierung. Echtzeit-Hilfe begleitet den Prozess kontinuierlich und erkennt Probleme frueher. Der kombinierte Einsatz verkuerzt Iterationen und fuehrt schneller zum Zielergebnis.',
+      },
+    ],
+  },
+  it: {
+    howItWorks: 'Come funziona',
+    previous: 'Precedente',
+    next: 'Successivo',
+    finish: 'Fine',
+    steps: [
+      {
+        id: 'editors',
+        title: 'HTML/CSS/JS',
+        description:
+          "L'area di editing e il punto di partenza della lezione: HTML definisce la struttura, CSS gestisce lo stile e JavaScript aggiunge il comportamento. Il vantaggio principale e la velocita di iterazione, perche ogni modifica si riflette subito. Insieme al risultato live e all'obiettivo, crea un flusso rapido di verifica e miglioramento.",
+      },
+      {
+        id: 'live',
+        title: 'Il Tuo Risultato Live',
+        description:
+          'Il risultato live mostra in tempo reale cio che produce il codice corrente, senza esecuzioni manuali separate. Questo aiuta a individuare subito differenze di layout, spaziature, colori e interazioni. Collegato a editor e obiettivo, consente di validare ogni cambiamento in modo progressivo.',
+      },
+      {
+        id: 'target',
+        title: 'Obiettivo',
+        description:
+          "La finestra obiettivo e il riferimento visivo e funzionale dell'esercizio. Aiuta a definire le priorita: prima struttura, poi stile, infine comportamento. Usata insieme al risultato live e al codice sorgente, riduce i tentativi casuali e offre un criterio chiaro per valutare i progressi.",
+      },
+      {
+        id: 'teacher',
+        title: 'Professore IA',
+        description:
+          "Il Professore IA completa il flusso quando servono spiegazioni, feedback o guida tecnica. Il vantaggio chiave e l'assistenza contestuale basata sull'esercizio attivo e sul codice attuale. Integrato con editor, risultato live e obiettivo, accelera lo sblocco dei problemi e migliora la comprensione.",
+      },
+      {
+        id: 'modes',
+        title: 'Chiedi al professore / Assistenza in tempo reale',
+        description:
+          "Questi due pulsanti definiscono come ricevere feedback. Chiedi al professore avvia una revisione su richiesta, utile per controlli mirati dopo modifiche importanti. Assistenza in tempo reale mantiene supporto continuo durante lo sviluppo. Usarli insieme in modo strategico riduce i tentativi inutili e accelera il raggiungimento dell'obiettivo.",
+      },
+    ],
+  },
+  pt: {
+    howItWorks: 'Como funciona',
+    previous: 'Anterior',
+    next: 'Proximo',
+    finish: 'Concluir',
+    steps: [
+      {
+        id: 'editors',
+        title: 'HTML/CSS/JS',
+        description:
+          'A area de edicao e o ponto de partida da licao: HTML define a estrutura, CSS controla o estilo e JavaScript adiciona comportamento. A maior vantagem e a velocidade de iteracao, porque cada alteracao aparece imediatamente. Junto com o resultado ao vivo e o objetivo, isso cria um ciclo rapido de ajuste e validacao.',
+      },
+      {
+        id: 'live',
+        title: 'Seu Resultado Ao Vivo',
+        description:
+          'O resultado ao vivo mostra em tempo real o que o seu codigo atual produz, sem precisar executar manualmente a cada ajuste. Isso facilita identificar diferencas de layout, espacamento, cores e interacoes. Em conjunto com o editor e o objetivo, cada mudanca pode ser validada com rapidez.',
+      },
+      {
+        id: 'target',
+        title: 'Objetivo',
+        description:
+          'A janela de objetivo funciona como referencia visual e funcional do exercicio. Ela ajuda a priorizar o trabalho: primeiro estrutura, depois estilo e por fim comportamento. Combinada ao resultado ao vivo e ao codigo fonte, reduz tentativa e erro e deixa claro o que ainda precisa ser melhorado.',
+      },
+      {
+        id: 'teacher',
+        title: 'Professor IA',
+        description:
+          'O Professor IA complementa o fluxo quando voce precisa de explicacoes, feedback ou orientacao tecnica. O principal beneficio e a ajuda contextual, baseada no exercicio ativo e no seu codigo atual. Integrado com editor, resultado ao vivo e objetivo, acelera a resolucao de bloqueios e melhora o aprendizado.',
+      },
+      {
+        id: 'modes',
+        title: 'Perguntar ao professor / Assistencia em tempo real',
+        description:
+          'Esses dois botoes controlam como o feedback acontece. Perguntar ao professor faz uma revisao sob demanda, ideal para validar alteracoes importantes em momentos especificos. Assistencia em tempo real oferece acompanhamento continuo durante a construcao. O uso combinado acelera iteracoes e melhora o alinhamento com o objetivo.',
+      },
+    ],
+  },
 };
 
 const STARTER_CODE: Record<AiLanguage, { html: string; css: string; js: string }> = {
@@ -314,16 +592,24 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   const [isObjectiveDrawerOpen, setIsObjectiveDrawerOpen] = useState(false);
   const [isLiveDrawerOpen, setIsLiveDrawerOpen] = useState(false);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [guideStepIndex, setGuideStepIndex] = useState(0);
   const [sessionStartTime] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   );
   const ui = UI_TEXT[aiLanguage] ?? UI_TEXT.ro;
+  const guide = GUIDE_I18N[aiLanguage] ?? GUIDE_I18N.ro;
+  const guideSteps = guide.steps;
   const isBelow1200 = viewportWidth < 1200;
   const isBelow800 = viewportWidth < 800;
   
   const lastRealtimeSnapshotRef = useRef<string | null>(null);
   const seenModelMessagesRef = useRef<Set<string>>(new Set());
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const chatWasOpenBeforeGuideRef = useRef(false);
+
+  const activeGuideStep = guideSteps[guideStepIndex];
+  const isGuideOverlayActive = isGuideOpen && !isBelow1200;
 
   const resetLessonWorkspace = (language: AiLanguage = aiLanguage) => {
     const starter = STARTER_CODE[language] ?? STARTER_CODE.ro;
@@ -400,6 +686,17 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
       setIsModeMenuOpen(false);
     }
   }, [isBelow1200, isBelow800]);
+
+  useEffect(() => {
+    if (!isGuideOpen || !activeGuideStep) return;
+    if (activeGuideStep.id === 'teacher') {
+      setIsChatOpen(true);
+      return;
+    }
+    if (!chatWasOpenBeforeGuideRef.current) {
+      setIsChatOpen(false);
+    }
+  }, [activeGuideStep, isGuideOpen]);
 
   useEffect(() => {
     if (isChatOpen) {
@@ -532,6 +829,42 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
     setMinimizedEditors(prev => ({ ...prev, [type]: !prev[type] }));
   };
 
+  const startGuide = () => {
+    chatWasOpenBeforeGuideRef.current = isChatOpen;
+    setGuideStepIndex(0);
+    setIsGuideOpen(true);
+  };
+
+  const finishGuide = () => {
+    setIsGuideOpen(false);
+    setGuideStepIndex(0);
+    if (!chatWasOpenBeforeGuideRef.current) {
+      setIsChatOpen(false);
+    }
+  };
+
+  const goToGuideStep = (index: number) => {
+    if (index < 0 || index >= guideSteps.length) return;
+    setGuideStepIndex(index);
+  };
+
+  const getGuidePanelClass = (panelId: GuideStepId) => {
+    if (!isGuideOverlayActive || activeGuideStep?.id === panelId) {
+      return 'opacity-100';
+    }
+    return 'opacity-20 pointer-events-none select-none';
+  };
+
+  const splitGuideDescription = (text: string) => {
+    const normalized = text.trim();
+    if (!normalized) return { lead: '', rest: '' };
+    const sentenceMatch = normalized.match(/^(.+?[.!?])\s+([\s\S]+)$/);
+    if (sentenceMatch) {
+      return { lead: sentenceMatch[1].trim(), rest: sentenceMatch[2].trim() };
+    }
+    return { lead: normalized, rest: '' };
+  };
+
   // Real-time debounce
   useEffect(() => {
     if (isRealTime) {
@@ -578,7 +911,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   const headerHeight = "h-12";
 
   const editorsColumn = (
-    <div className="h-full flex flex-col bg-zinc-950">
+    <div className={`h-full flex flex-col bg-zinc-950 transition-opacity duration-200 ${getGuidePanelClass('editors')}`}>
       <div className={`flex flex-col border-b border-zinc-800 transition-all duration-300 ${minimizedEditors.html ? 'h-12' : 'flex-1 min-h-0'}`}>
         <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
           <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">HTML</span>
@@ -642,7 +975,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   );
 
   const livePreviewColumn = (
-    <div className="h-full flex flex-col bg-white">
+    <div className={`h-full flex flex-col bg-white transition-opacity duration-200 ${getGuidePanelClass('live')}`}>
       <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
         <span className="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-[pulse_0.7s_ease-in-out_infinite]" />
@@ -660,10 +993,10 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   );
 
   const targetPreviewColumn = (
-    <div className="h-full flex flex-col bg-white">
+    <div className={`h-full flex flex-col bg-white transition-opacity duration-200 ${getGuidePanelClass('target')}`}>
       <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
         <span className="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
-          <Sparkles className="w-3 h-3" />
+          <Crosshair className="w-3 h-3" />
           {ui.target}
         </span>
       </div>
@@ -683,7 +1016,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
       <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md z-10">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-600 rounded-lg">
-            <Sparkles className="w-5 h-5 text-white" />
+            <Mouse className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="font-bold text-lg tracking-tight">{exercise?.title || ui.newLesson}</h1>
@@ -702,6 +1035,16 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
               </button>
               {isModeMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-xl p-2 shadow-2xl z-30">
+                  <button
+                    onClick={() => {
+                      startGuide();
+                      setIsModeMenuOpen(false);
+                    }}
+                    className="w-full px-3 py-2 rounded-lg text-sm font-medium transition-all text-left text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                  >
+                    <CircleHelp className="w-3.5 h-3.5 text-blue-400" />
+                    {guide.howItWorks}
+                  </button>
                   <button
                     onClick={() => {
                       if (!isRealTime) {
@@ -730,7 +1073,15 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
               )}
             </div>
           ) : (
-            <div className="flex bg-zinc-800 rounded-full p-1">
+            <div className={`flex items-center gap-2 transition-opacity duration-200 ${getGuidePanelClass('modes')}`}>
+              <button
+                onClick={startGuide}
+                className="px-4 py-1.5 rounded-full text-sm font-medium transition-all bg-zinc-800 text-zinc-200 hover:bg-zinc-700 flex items-center gap-2"
+              >
+                <CircleHelp className="w-3.5 h-3.5 text-blue-400" />
+                {guide.howItWorks}
+              </button>
+              <div className="flex bg-zinc-800 rounded-full p-1">
               <button 
                 onClick={() => {
                   if (!isRealTime) {
@@ -751,6 +1102,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
               >
                 {ui.realtime}
               </button>
+              </div>
             </div>
           )}
           <button 
@@ -821,7 +1173,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
         </>
       )}
 
-      <div className="fixed bottom-6 right-6 z-40">
+      <div className={`fixed bottom-6 right-6 z-40 transition-opacity duration-200 ${getGuidePanelClass('teacher')}`}>
         <button
           onClick={() => setIsChatOpen(!isChatOpen)}
           className={`relative w-14 h-14 ${isChatOpen ? 'bg-[#b9e8bf]' : 'bg-[#9ad89f] hover:bg-[#a7dfa9]'} text-zinc-900 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110`}
@@ -853,7 +1205,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed left-4 right-4 top-16 bottom-24 md:left-auto md:right-6 md:top-auto md:bottom-24 md:w-[420px] md:h-[70vh] bg-[#f4e2b9] border border-[#e7c980] rounded-2xl shadow-2xl overflow-hidden flex flex-col z-40"
+            className={`fixed left-4 right-4 top-16 bottom-24 md:left-auto md:right-6 md:top-auto md:bottom-24 md:w-[420px] md:h-[70vh] bg-[#f4e2b9] border border-[#e7c980] rounded-2xl shadow-2xl overflow-hidden flex flex-col z-40 transition-opacity duration-200 ${getGuidePanelClass('teacher')}`}
           >
             <div className="bg-[#c5e8c9] px-4 py-3 flex items-center justify-between shadow-lg border-b border-[#add8b2]">
               <div className="flex items-center gap-3">
@@ -997,6 +1349,65 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
           </motion.div>
         )}
       </AnimatePresence>
+
+      {isGuideOpen && activeGuideStep && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isGuideOverlayActive ? 'bg-black/45' : ''}`}>
+          <div className="w-full max-w-md h-[400px] rounded-2xl border border-zinc-700 bg-zinc-900/95 p-5 shadow-2xl flex flex-col">
+            <h3 className="mt-2 text-xl font-semibold text-zinc-50 shrink-0">{activeGuideStep.title}</h3>
+            <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+              {(() => {
+                const { lead, rest } = splitGuideDescription(activeGuideStep.description);
+                return (
+                  <div className="space-y-2">
+                    <p className="text-sm leading-relaxed font-semibold text-zinc-100">{lead}</p>
+                    {rest && <p className="text-sm leading-relaxed text-zinc-300">{rest}</p>}
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="mt-5 flex items-center justify-between gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => goToGuideStep(guideStepIndex - 1)}
+                disabled={guideStepIndex === 0}
+                className="rounded-lg border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {guide.previous}
+              </button>
+              <div className="flex items-center gap-2">
+                {guideSteps.map((step, index) => (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => goToGuideStep(index)}
+                    aria-label={`${index + 1}`}
+                    className={`h-2.5 w-2.5 rounded-full transition-colors ${index === guideStepIndex ? 'bg-blue-400' : 'bg-zinc-600 hover:bg-zinc-500'}`}
+                  >
+                    <span className="sr-only">{step.title}</span>
+                  </button>
+                ))}
+              </div>
+              {guideStepIndex < guideSteps.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => goToGuideStep(guideStepIndex + 1)}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+                >
+                  {guide.next}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={finishGuide}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+                >
+                  {guide.finish}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1127,7 +1538,7 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
               disabled={saving || !selectedLessonId}
               className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2"
             >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
               {ui.launchLesson}
             </button>
           </div>

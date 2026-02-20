@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { getLanguageInstruction, type AiLanguage } from "@/src/lib/languages";
+import { getLanguageInstruction, getTargetPanelLabel, type AiLanguage } from "@/src/lib/languages";
 import type { Exercise } from "@/src/lib/types";
 
 function getAI() {
@@ -50,6 +50,7 @@ export async function teacherFeedback(
   aiLanguage: AiLanguage,
 ): Promise<{ feedback: string; isCorrect: boolean }> {
   const ai = getAI();
+  const targetPanelLabel = getTargetPanelLabel(aiLanguage);
   const prompt = `You are an expert AI Web Development Teacher.
 Exercise: ${exercise.title}
 Description: ${exercise.description}
@@ -67,6 +68,7 @@ ${
 If the code is still starter boilerplate/minimal unchanged template, do not praise it.
 Treat starter boilerplate as not yet meaningful progress.
 The Target HTML/CSS/JS describe the expected visual example shown in preview.
+When referencing the expected preview panel in your response, call it "${targetPanelLabel}".
 Always format lists and sequences with one item per line.
 When you use numbered points, use Markdown and format labels like **1. HTML:**.
 ${getLanguageInstruction(aiLanguage)}
@@ -99,6 +101,7 @@ export async function chatResponse(
   aiLanguage: AiLanguage,
 ): Promise<string> {
   const ai = getAI();
+  const targetPanelLabel = getTargetPanelLabel(aiLanguage);
   const prompt = `You are an expert AI Web Development Teacher.
 Exercise: ${exercise.title}
 Description: ${exercise.description}
@@ -113,6 +116,7 @@ Guide the student, do not give the complete final solution.
 If the code is still starter boilerplate/minimal unchanged template, do not praise it.
 Treat starter boilerplate as not yet meaningful progress.
 The Target HTML/CSS/JS describe the expected visual example shown in preview.
+When referencing the expected preview panel in your response, call it "${targetPanelLabel}".
 Always format lists and sequences with one item per line.
 When you use numbered points, use Markdown and format labels like **1. HTML:**.
 Return JSON with:

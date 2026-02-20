@@ -31,7 +31,7 @@ export const LESSONS: Lesson[] = [
     exercise: {
       title: "Joc de X si O (Tic Tac Toe)",
       description: "Recreeaza interfata unui joc 3x3 cu stare pentru randul curent.",
-      targetHtml: "<h1>Tic Tac Toe</h1><h2>Randul lui X</h2><div class='board'><button class='cell'>X</button><button class='cell'></button><button class='cell'></button><button class='cell'></button><button class='cell'>O</button><button class='cell'></button><button class='cell'></button><button class='cell'></button><button class='cell'></button></div>",
+      targetHtml: "<h1>Tic Tac Toe</h1><h2>Turn: X</h2><div class='board'><button class='cell'>X</button><button class='cell'></button><button class='cell'></button><button class='cell'></button><button class='cell'>O</button><button class='cell'></button><button class='cell'></button><button class='cell'></button><button class='cell'></button></div>",
       targetCss: "body{margin:0;background:#d4d4d8;font-family:Helvetica,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}.board{display:grid;grid-template-columns:repeat(3,56px);gap:0}.cell{width:56px;height:56px;border:1px solid #111;background:#fff;font-size:24px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}",
       targetJs: "const cells=document.querySelectorAll('.cell'); let turn='X'; cells.forEach(c=>c.addEventListener('click',()=>{ if(c.textContent) return; c.textContent=turn; turn = turn==='X'?'O':'X';}));",
       hints: [

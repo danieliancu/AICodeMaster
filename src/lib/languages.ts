@@ -36,3 +36,24 @@ export function getLanguageInstruction(language: AiLanguage): string {
       return "Respond in Romanian.";
   }
 }
+
+export function getTargetPanelLabel(language: AiLanguage): string {
+  switch (language) {
+    case "ro":
+      return "Obiectiv";
+    case "en":
+      return "Target";
+    case "es":
+      return "Objetivo";
+    case "fr":
+      return "Objectif";
+    case "de":
+      return "Ziel";
+    case "it":
+      return "Obiettivo";
+    case "pt":
+      return "Objetivo";
+    default:
+      return "Obiectiv";
+  }
+}
