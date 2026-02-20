@@ -2,9 +2,13 @@ import type { AiLanguage } from "@/src/lib/languages";
 import type { Exercise } from "@/src/lib/types";
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("aicodemaster_auth_token") : null;
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(body),
   });
 
@@ -34,12 +38,14 @@ export async function getTeacherFeedback(
   userCode: { html?: string; css?: string; js?: string },
   isRealTime: boolean,
   aiLanguage: AiLanguage,
+  lessonId?: string,
 ): Promise<{ feedback: string; isCorrect: boolean }> {
   return postJson<{ feedback: string; isCorrect: boolean }>("/api/ai/feedback", {
     exercise,
     userCode,
     isRealTime,
     aiLanguage,
+    lessonId,
   });
 }
 
@@ -49,6 +55,7 @@ export async function getChatResponse(
   userQuestion: string,
   chatHistory: { role: "user" | "model"; text: string }[],
   aiLanguage: AiLanguage,
+  lessonId?: string,
 ): Promise<string> {
   const data = await postJson<{ text: string }>("/api/ai/chat", {
     exercise,
@@ -56,6 +63,7 @@ export async function getChatResponse(
     userQuestion,
     chatHistory,
     aiLanguage,
+    lessonId,
   });
 
   return data.text;

@@ -6,12 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate:lessons": "npx tsx scripts/migrate-lessons.ts",
+    "migrate:i18n": "npx tsx scripts/migrate-ui-translations.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "mysql2": "^3.17.4",
     "next": "^15.2.0",
     "prismjs": "^1.30.0",
     "react": "^19.0.0",

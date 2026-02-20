@@ -17,6 +17,49 @@ function requireText(text: string | undefined) {
   return text;
 }
 
+function sanitizeAiText(value: string): string {
+  return value
+    .normalize("NFC")
+    .replace(/\r/g, "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .replace(/\uFFFD/g, "")
+    .trim();
+}
+
+function stripMarkdownEmphasis(value: string): string {
+  return sanitizeAiText(value).replace(/\*\*/g, "").replace(/__/g, "").trim();
+}
+
+function buildNumberedSections(sections: string[]): string {
+  return sections
+    .slice(0, 3)
+    .map((section, index) => `${index + 1}. ${stripMarkdownEmphasis(section).replace(/^\d+\.\s*/, "").trim()}`)
+    .join("\n");
+}
+
+function fallbackSectionsFromText(text: string): string[] {
+  const cleaned = stripMarkdownEmphasis(sanitizeAiText(text));
+  const numbered = [...cleaned.matchAll(/(?:^|\n)\s*\d+\.\s+([^\n]+)/g)].map((match) => (match[1] ?? "").trim());
+  if (numbered.length >= 3) return numbered.slice(0, 3);
+
+  const bullets = cleaned
+    .split("\n")
+    .map((line) => line.trim().replace(/^[-*]\s+/, ""))
+    .filter(Boolean);
+  if (bullets.length >= 3) return bullets.slice(0, 3);
+
+  const sentences = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (sentences.length >= 3) return sentences.slice(0, 3);
+
+  while (sentences.length < 3) {
+    sentences.push("Continue by matching the target step by step.");
+  }
+  return sentences.slice(0, 3);
+}
+
 export async function generateExercise(theme: string): Promise<Exercise> {
   const ai = getAI();
   const response = await ai.models.generateContent({
@@ -119,9 +162,12 @@ Treat starter boilerplate as not yet meaningful progress.
 The Target HTML/CSS/JS describe the expected visual example shown in preview.
 When referencing the expected preview panel in your response, call it "${targetPanelLabel}".
 Always format lists and sequences with one item per line.
-When you use numbered points, use Markdown and format labels like **1. HTML:**.
+Respond with exactly 3 numbered sections (1., 2., 3.) and plain text only.
+Do not use Markdown emphasis markers such as ** or __.
 ${getLanguageInstruction(aiLanguage)}
-Return JSON with feedback and isCorrect.`;
+Return JSON with:
+- sections: array of exactly 3 strings, each one concise and actionable.
+- isCorrect: boolean.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
@@ -131,15 +177,26 @@ Return JSON with feedback and isCorrect.`;
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          feedback: { type: Type.STRING },
+          sections: { type: Type.ARRAY, items: { type: Type.STRING } },
           isCorrect: { type: Type.BOOLEAN },
         },
-        required: ["feedback", "isCorrect"],
+        required: ["sections", "isCorrect"],
       },
     },
   });
 
-  return JSON.parse(requireText(response.text)) as { feedback: string; isCorrect: boolean };
+  const parsed = JSON.parse(requireText(response.text)) as {
+    sections?: string[];
+    feedback?: string;
+    isCorrect?: boolean;
+  };
+  const sections = Array.isArray(parsed.sections) && parsed.sections.length
+    ? parsed.sections
+    : fallbackSectionsFromText(parsed.feedback ?? "");
+  return {
+    feedback: sanitizeAiText(buildNumberedSections(sections)),
+    isCorrect: Boolean(parsed.isCorrect),
+  };
 }
 
 export async function chatResponse(
@@ -165,10 +222,10 @@ Treat starter boilerplate as not yet meaningful progress.
 The Target HTML/CSS/JS describe the expected visual example shown in preview.
 When referencing the expected preview panel in your response, call it "${targetPanelLabel}".
 Always format lists and sequences with one item per line.
-When you use numbered points, use Markdown and format labels like **1. HTML:**.
 Return JSON with:
 - short: short answer only, strict to the question, max 3 short sentences.
-- details: extended explanation, examples, and next steps.
+- detailsSections: array of exactly 3 strings, formatted as steps in order.
+Use plain text only (no Markdown emphasis like ** or __).
 ${getLanguageInstruction(aiLanguage)}`;
 
   const response = await ai.models.generateContent({
@@ -183,16 +240,20 @@ ${getLanguageInstruction(aiLanguage)}`;
         type: Type.OBJECT,
         properties: {
           short: { type: Type.STRING },
-          details: { type: Type.STRING },
+          detailsSections: { type: Type.ARRAY, items: { type: Type.STRING } },
         },
-        required: ["short", "details"],
+        required: ["short", "detailsSections"],
       },
     },
   });
 
   const raw = requireText(response.text);
-  const parsed = JSON.parse(raw) as { short?: string; details?: string };
-  const shortText = (parsed.short || "").trim();
-  const detailsText = (parsed.details || "").trim();
+  const parsed = JSON.parse(raw) as { short?: string; detailsSections?: string[]; details?: string };
+  const shortText = sanitizeAiText(stripMarkdownEmphasis(parsed.short || ""));
+  const detailsSource =
+    Array.isArray(parsed.detailsSections) && parsed.detailsSections.length
+      ? parsed.detailsSections
+      : fallbackSectionsFromText(parsed.details || "");
+  const detailsText = sanitizeAiText(buildNumberedSections(detailsSource));
   return `${shortText}\n\n[[MORE]]\n\n${detailsText}`;
 }

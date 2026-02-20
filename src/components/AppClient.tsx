@@ -6,12 +6,12 @@ import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-markup';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-javascript';
-import { CheckCircle, MessageSquare, Settings, User, Loader2, Send, X, Minimize2, Maximize2, Menu, CircleHelp, Mouse, Crosshair, Rocket, Activity } from 'lucide-react';
+import { CheckCircle, MessageSquare, Settings, User, Loader2, Send, X, Minimize2, Maximize2, Menu, CircleHelp, Mouse, Crosshair, Rocket, Activity, UserRound, LogIn, UserPlus, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import ReactMarkdown from 'react-markdown';
 import { Exercise, getTeacherFeedback, getChatResponse } from '../services/geminiService';
-import type { AiLanguage } from '@/src/lib/languages';
+import { isAiLanguage, type AiLanguage } from '@/src/lib/languages';
 import type { LessonProgress, Technology } from '@/src/lib/types';
 
 type SettingsResponse = {
@@ -39,598 +39,205 @@ type GuideLanguageContent = {
   steps: { id: GuideStepId; title: string; description: string }[];
 };
 
-const GUIDE_I18N: Record<AiLanguage, GuideLanguageContent> = {
-  ro: {
-    howItWorks: 'Cum functioneaza',
-    previous: 'Anterior',
-    next: 'Urmatorul',
-    finish: 'Finalizare',
-    steps: [
-      {
-        id: 'editors',
-        title: 'HTML/CSS/JS',
-        description:
-          'Zona de editor este punctul de plecare pentru toata lectia: structurezi pagina in HTML, controlezi stilul in CSS si adaugi comportament in JavaScript. Avantajul major este viteza de iterare, pentru ca orice modificare facuta aici se reflecta imediat in rezultat. In combinatie cu preview-ul live si cu obiectivul, poti compara rapid ce ai construit cu ce trebuie obtinut.',
-      },
-      {
-        id: 'live',
-        title: 'Rezultatul tau live',
-        description:
-          'Preview-ul live arata in timp real ce produce codul tau, fara rulare manuala sau refresh separat. Beneficiul este ca observi imediat diferentele de layout, spacing, culori sau comportament. Corelat cu editorul, vezi instant efectul fiecarei linii, iar corelat cu obiectivul poti ajusta fin implementarea pana cand cele doua rezultate devin cat mai apropiate.',
-      },
-      {
-        id: 'target',
-        title: 'Obiectiv',
-        description:
-          'Fereastra de obiectiv functioneaza ca referinta vizuala si functionala pentru exercitiul curent. Ajuta la prioritizare: intai compari structura, apoi stilizarea si la final interactiunile. In paralel cu rezultatul live si editorul, aceasta referinta reduce timpul pierdut pe presupuneri si iti ofera un standard clar dupa care validezi progresul.',
-      },
-      {
-        id: 'teacher',
-        title: 'Profesor AI',
-        description:
-          'Profesorul AI completeaza fluxul de lucru atunci cand ai nevoie de explicatii, feedback sau directie tehnica. Avantajul este asistenta contextuala, bazata pe exercitiul activ si pe codul scris. Folosit impreuna cu editorul, rezultatul live si obiectivul, chatul accelereaza rezolvarea blocajelor si te ajuta sa intelegi nu doar ce sa schimbi, ci si de ce.',
-      },
-      {
-        id: 'modes',
-        title: 'Intreaba profesorul / Asistenta in timp real',
-        description:
-          'Cele doua moduri controleaza cum primesti feedback. Intreaba profesorul declanseaza verificare la cerere, utila cand vrei validare punctuala dupa o schimbare importanta. Asistenta in timp real monitorizeaza continuu progresul si ofera ghidaj constant. Folosite corect impreuna, reduci incercarile inutile si ajustezi mai rapid codul in functie de obiectiv.',
-      },
-    ],
-  },
-  en: {
-    howItWorks: 'How it works',
-    previous: 'Previous',
-    next: 'Next',
-    finish: 'Finish',
-    steps: [
-      {
-        id: 'editors',
-        title: 'HTML/CSS/JS',
-        description:
-          'The editor area is the starting point of the lesson: HTML defines structure, CSS controls presentation, and JavaScript adds behavior. Its main advantage is iteration speed, because every change is reflected immediately in the rest of the workspace. Together with the live result and the target view, it creates a fast feedback loop for building and correcting your solution.',
-      },
-      {
-        id: 'live',
-        title: 'Your Live Result',
-        description:
-          'The live result updates in real time and shows exactly what your current code produces, without manual reruns. This helps you catch layout, spacing, color, and interaction issues right away. Connected to the editor and target view, it lets you verify each small change and progressively align your implementation with the expected outcome.',
-      },
-      {
-        id: 'target',
-        title: 'Target',
-        description:
-          'The target panel is the visual and functional reference for the exercise. It helps you prioritize what to match first: structure, styling, then behavior. When used alongside your live result and source code, it reduces guesswork and gives you a clear quality benchmark for deciding what still needs adjustment.',
-      },
-      {
-        id: 'teacher',
-        title: 'AI Teacher',
-        description:
-          'The AI Teacher is the support layer for explanations, feedback, and next-step guidance when you get stuck. Its key benefit is contextual help based on the active exercise and your current code. Combined with the editor, live result, and target view, it speeds up problem solving and improves understanding of both what to change and why.',
-      },
-      {
-        id: 'modes',
-        title: 'Ask the teacher / Real-time assistance',
-        description:
-          'These two buttons control how feedback is delivered. Ask the teacher runs an on-demand review, useful when you want a focused check after a meaningful update. Real-time assistance keeps guidance active while you work and helps catch issues earlier. Using both modes strategically creates faster iteration and a cleaner path to the target result.',
-      },
-    ],
-  },
-  es: {
-    howItWorks: 'Como funciona',
-    previous: 'Anterior',
-    next: 'Siguiente',
-    finish: 'Finalizar',
-    steps: [
-      {
-        id: 'editors',
-        title: 'HTML/CSS/JS',
-        description:
-          'La zona de edicion es el punto de partida de toda la leccion: HTML define la estructura, CSS controla el estilo y JavaScript agrega comportamiento. Su principal ventaja es la velocidad de iteracion, porque cada cambio se refleja de inmediato. En conjunto con el resultado en vivo y el objetivo, permite ajustar la solucion de forma rapida y precisa.',
-      },
-      {
-        id: 'live',
-        title: 'Tu Resultado en Vivo',
-        description:
-          'El resultado en vivo muestra en tiempo real lo que produce tu codigo actual, sin ejecuciones manuales adicionales. Esto facilita detectar diferencias de diseno, espaciado, colores o interacciones desde el primer momento. Al usarlo junto con el editor y el objetivo, cada ajuste se valida rapidamente contra el resultado esperado.',
-      },
-      {
-        id: 'target',
-        title: 'Objetivo',
-        description:
-          'La ventana de objetivo funciona como referencia visual y funcional del ejercicio. Ayuda a priorizar el trabajo: primero la estructura, luego el estilo y finalmente la logica interactiva. Combinada con el resultado en vivo y el codigo fuente, reduce suposiciones y ofrece un criterio claro para medir el progreso.',
-      },
-      {
-        id: 'teacher',
-        title: 'Profesor IA',
-        description:
-          'El Profesor IA complementa el flujo cuando necesitas explicaciones, retroalimentacion o direccion tecnica. La ventaja principal es la ayuda contextual basada en el ejercicio activo y en tu implementacion actual. Integrado con editor, resultado en vivo y objetivo, acelera la resolucion de bloqueos y mejora la comprension tecnica.',
-      },
-      {
-        id: 'modes',
-        title: 'Preguntar al profesor / Asistencia en tiempo real',
-        description:
-          'Estos dos botones definen como recibes feedback. Preguntar al profesor ejecuta una revision bajo demanda, ideal para validar cambios importantes en momentos clave. Asistencia en tiempo real mantiene orientacion continua mientras avanzas. Combinarlos de forma inteligente acelera la iteracion y mejora la alineacion con el objetivo del ejercicio.',
-      },
-    ],
-  },
-  fr: {
-    howItWorks: 'Comment ca marche',
-    previous: 'Precedent',
-    next: 'Suivant',
-    finish: 'Terminer',
-    steps: [
-      {
-        id: 'editors',
-        title: 'HTML/CSS/JS',
-        description:
-          "La zone d'edition est le point de depart de la lecon: HTML organise la structure, CSS gere la presentation et JavaScript ajoute le comportement. Son avantage principal est la rapidite d'iteration, car chaque modification est visible immediatement. Avec le resultat en direct et la cible, elle cree une boucle de feedback tres efficace.",
-      },
-      {
-        id: 'live',
-        title: 'Votre Resultat en Direct',
-        description:
-          "Le resultat en direct montre en temps reel ce que produit votre code actuel, sans relance manuelle. Cela permet d'identifier rapidement les ecarts de mise en page, d'espacement, de couleurs ou d'interactions. Relie a l'editeur et a la cible, il facilite des ajustements progressifs et precis.",
-      },
-      {
-        id: 'target',
-        title: 'Objectif',
-        description:
-          "La fenetre objectif sert de reference visuelle et fonctionnelle pour l'exercice. Elle aide a prioriser les corrections: structure, style puis comportement. Utilisee avec le resultat en direct et l'editeur, elle reduit les suppositions et fournit un standard clair pour evaluer l'avancement.",
-      },
-      {
-        id: 'teacher',
-        title: 'Professeur IA',
-        description:
-          "Le Professeur IA apporte une assistance contextualisee quand vous avez besoin d'explications, de feedback ou d'orientation technique. Son avantage est de s'appuyer sur l'exercice actif et votre code en cours. Combine aux autres panneaux, il accelere la resolution des blocages et renforce la comprehension.",
-      },
-      {
-        id: 'modes',
-        title: 'Demander au professeur / Assistance en temps reel',
-        description:
-          "Ces deux boutons definissent le mode de feedback. Demander au professeur lance une verification a la demande, pratique pour valider une etape importante. Assistance en temps reel maintient un accompagnement continu pendant le travail. Leur combinaison permet d'iterer plus vite et d'aligner plus efficacement votre resultat avec l'objectif.",
-      },
-    ],
-  },
-  de: {
-    howItWorks: 'So funktioniert es',
-    previous: 'Zuruck',
-    next: 'Weiter',
-    finish: 'Fertig',
-    steps: [
-      {
-        id: 'editors',
-        title: 'HTML/CSS/JS',
-        description:
-          'Der Editorbereich ist der Ausgangspunkt der Aufgabe: HTML bildet die Struktur, CSS steuert das Design und JavaScript liefert die Interaktivitat. Der groesste Vorteil ist die schnelle Iteration, weil jede Aenderung sofort sichtbar wird. Zusammen mit Live-Ergebnis und Zielansicht entsteht ein direkter Arbeitskreislauf zum Vergleichen und Verbessern.',
-      },
-      {
-        id: 'live',
-        title: 'Dein Live-Ergebnis',
-        description:
-          'Die Live-Ansicht zeigt in Echtzeit, was dein aktueller Code wirklich erzeugt, ohne manuelles Neuladen. Dadurch erkennst du Layout-, Abstands-, Farb- oder Interaktionsabweichungen sofort. In Kombination mit Editor und Zielansicht kannst du jeden Schritt unmittelbar pruefen und gezielt nachschaerfen.',
-      },
-      {
-        id: 'target',
-        title: 'Ziel',
-        description:
-          'Die Zielansicht dient als visuelle und funktionale Referenz fuer die aktuelle Uebung. Sie hilft bei der Priorisierung: zuerst Struktur, dann Styling, danach Verhalten. Gemeinsam mit Live-Ansicht und Quellcode reduziert sie Raterei und liefert einen klaren Massstab fuer den Fortschritt.',
-      },
-      {
-        id: 'teacher',
-        title: 'KI Lehrer',
-        description:
-          'Der KI-Lehrer unterstuetzt dich mit Erklaerungen, Feedback und konkreten naechsten Schritten, wenn du feststeckst. Der wichtigste Vorteil ist kontextbezogene Hilfe auf Basis der aktiven Aufgabe und deines aktuellen Codes. Zusammen mit den anderen Bereichen beschleunigt das die Problemloesung und verbessert dein Verstaendnis.',
-      },
-      {
-        id: 'modes',
-        title: 'Lehrer fragen / Echtzeit-Hilfe',
-        description:
-          'Diese beiden Schaltflaechen steuern, wie Rueckmeldung erfolgt. Lehrer fragen startet eine gezielte Pruefung auf Anfrage und ist ideal fuer punktuelle Validierung. Echtzeit-Hilfe begleitet den Prozess kontinuierlich und erkennt Probleme frueher. Der kombinierte Einsatz verkuerzt Iterationen und fuehrt schneller zum Zielergebnis.',
-      },
-    ],
-  },
-  it: {
-    howItWorks: 'Come funziona',
-    previous: 'Precedente',
-    next: 'Successivo',
-    finish: 'Fine',
-    steps: [
-      {
-        id: 'editors',
-        title: 'HTML/CSS/JS',
-        description:
-          "L'area di editing e il punto di partenza della lezione: HTML definisce la struttura, CSS gestisce lo stile e JavaScript aggiunge il comportamento. Il vantaggio principale e la velocita di iterazione, perche ogni modifica si riflette subito. Insieme al risultato live e all'obiettivo, crea un flusso rapido di verifica e miglioramento.",
-      },
-      {
-        id: 'live',
-        title: 'Il Tuo Risultato Live',
-        description:
-          'Il risultato live mostra in tempo reale cio che produce il codice corrente, senza esecuzioni manuali separate. Questo aiuta a individuare subito differenze di layout, spaziature, colori e interazioni. Collegato a editor e obiettivo, consente di validare ogni cambiamento in modo progressivo.',
-      },
-      {
-        id: 'target',
-        title: 'Obiettivo',
-        description:
-          "La finestra obiettivo e il riferimento visivo e funzionale dell'esercizio. Aiuta a definire le priorita: prima struttura, poi stile, infine comportamento. Usata insieme al risultato live e al codice sorgente, riduce i tentativi casuali e offre un criterio chiaro per valutare i progressi.",
-      },
-      {
-        id: 'teacher',
-        title: 'Professore IA',
-        description:
-          "Il Professore IA completa il flusso quando servono spiegazioni, feedback o guida tecnica. Il vantaggio chiave e l'assistenza contestuale basata sull'esercizio attivo e sul codice attuale. Integrato con editor, risultato live e obiettivo, accelera lo sblocco dei problemi e migliora la comprensione.",
-      },
-      {
-        id: 'modes',
-        title: 'Chiedi al professore / Assistenza in tempo reale',
-        description:
-          "Questi due pulsanti definiscono come ricevere feedback. Chiedi al professore avvia una revisione su richiesta, utile per controlli mirati dopo modifiche importanti. Assistenza in tempo reale mantiene supporto continuo durante lo sviluppo. Usarli insieme in modo strategico riduce i tentativi inutili e accelera il raggiungimento dell'obiettivo.",
-      },
-    ],
-  },
-  pt: {
-    howItWorks: 'Como funciona',
-    previous: 'Anterior',
-    next: 'Proximo',
-    finish: 'Concluir',
-    steps: [
-      {
-        id: 'editors',
-        title: 'HTML/CSS/JS',
-        description:
-          'A area de edicao e o ponto de partida da licao: HTML define a estrutura, CSS controla o estilo e JavaScript adiciona comportamento. A maior vantagem e a velocidade de iteracao, porque cada alteracao aparece imediatamente. Junto com o resultado ao vivo e o objetivo, isso cria um ciclo rapido de ajuste e validacao.',
-      },
-      {
-        id: 'live',
-        title: 'Seu Resultado Ao Vivo',
-        description:
-          'O resultado ao vivo mostra em tempo real o que o seu codigo atual produz, sem precisar executar manualmente a cada ajuste. Isso facilita identificar diferencas de layout, espacamento, cores e interacoes. Em conjunto com o editor e o objetivo, cada mudanca pode ser validada com rapidez.',
-      },
-      {
-        id: 'target',
-        title: 'Objetivo',
-        description:
-          'A janela de objetivo funciona como referencia visual e funcional do exercicio. Ela ajuda a priorizar o trabalho: primeiro estrutura, depois estilo e por fim comportamento. Combinada ao resultado ao vivo e ao codigo fonte, reduz tentativa e erro e deixa claro o que ainda precisa ser melhorado.',
-      },
-      {
-        id: 'teacher',
-        title: 'Professor IA',
-        description:
-          'O Professor IA complementa o fluxo quando voce precisa de explicacoes, feedback ou orientacao tecnica. O principal beneficio e a ajuda contextual, baseada no exercicio ativo e no seu codigo atual. Integrado com editor, resultado ao vivo e objetivo, acelera a resolucao de bloqueios e melhora o aprendizado.',
-      },
-      {
-        id: 'modes',
-        title: 'Perguntar ao professor / Assistencia em tempo real',
-        description:
-          'Esses dois botoes controlam como o feedback acontece. Perguntar ao professor faz uma revisao sob demanda, ideal para validar alteracoes importantes em momentos especificos. Assistencia em tempo real oferece acompanhamento continuo durante a construcao. O uso combinado acelera iteracoes e melhora o alinhamento com o objetivo.',
-      },
-    ],
-  },
+const AUTH_TOKEN_STORAGE_KEY = 'aicodemaster_auth_token';
+const GUEST_AI_LANGUAGE_STORAGE_KEY = 'aicodemaster_guest_ai_language';
+const GUEST_LESSON_STORAGE_KEY = 'aicodemaster_guest_lesson_id';
+
+const getAuthToken = () => {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
 };
 
-const STARTER_CODE: Record<AiLanguage, { html: string; css: string; js: string }> = {
-  ro: {
-    html: '<!-- Scrie HTML aici -->\n<div class="box">Salut!</div>',
-    css: '/* Scrie CSS aici */\n.box {\n  color: white;\n  padding: 20px;\n  background: #3b82f6;\n  border-radius: 8px;\n}',
-    js: '// Scrie JS aici\nconsole.log("Hello World");',
-  },
-  en: {
-    html: '<!-- Write HTML here -->\n<div class="box">Hello!</div>',
-    css: '/* Write CSS here */\n.box {\n  color: white;\n  padding: 20px;\n  background: #3b82f6;\n  border-radius: 8px;\n}',
-    js: '// Write JS here\nconsole.log("Hello World");',
-  },
-  es: {
-    html: '<!-- Escribe HTML aqui -->\n<div class="box">Hola!</div>',
-    css: '/* Escribe CSS aqui */\n.box {\n  color: white;\n  padding: 20px;\n  background: #3b82f6;\n  border-radius: 8px;\n}',
-    js: '// Escribe JS aqui\nconsole.log("Hello World");',
-  },
-  fr: {
-    html: '<!-- Ecris le HTML ici -->\n<div class="box">Salut!</div>',
-    css: '/* Ecris le CSS ici */\n.box {\n  color: white;\n  padding: 20px;\n  background: #3b82f6;\n  border-radius: 8px;\n}',
-    js: '// Ecris le JS ici\nconsole.log("Hello World");',
-  },
-  de: {
-    html: '<!-- Schreibe HTML hier -->\n<div class="box">Hallo!</div>',
-    css: '/* Schreibe CSS hier */\n.box {\n  color: white;\n  padding: 20px;\n  background: #3b82f6;\n  border-radius: 8px;\n}',
-    js: '// Schreibe JS hier\nconsole.log("Hello World");',
-  },
-  it: {
-    html: '<!-- Scrivi HTML qui -->\n<div class="box">Ciao!</div>',
-    css: '/* Scrivi CSS qui */\n.box {\n  color: white;\n  padding: 20px;\n  background: #3b82f6;\n  border-radius: 8px;\n}',
-    js: '// Scrivi JS qui\nconsole.log("Hello World");',
-  },
-  pt: {
-    html: '<!-- Escreva HTML aqui -->\n<div class="box">Ola!</div>',
-    css: '/* Escreva CSS aqui */\n.box {\n  color: white;\n  padding: 20px;\n  background: #3b82f6;\n  border-radius: 8px;\n}',
-    js: '// Escreva JS aqui\nconsole.log("Hello World");',
-  },
+const setAuthToken = (token: string) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
 };
 
-const LESSON_LABELS: Record<AiLanguage, Record<string, { name: string; description: string }>> = {
-  ro: {
-    "basic-layout": { name: "Structura de pagina de baza", description: "Construieste o pagina simpla cu header, continut principal si footer." },
-    "tic-tac-toe-grid": { name: "Joc de X si O (Tic Tac Toe)", description: "Recreeaza interfata unui joc 3x3 cu stare pentru randul curent." },
-    "product-card": { name: "Card de produs responsive", description: "Construieste un card de produs modern, cu buton de actiune." },
-    "pocket-calculator": { name: "Calculator simplu de buzunar", description: "Creeaza un calculator simplu cu cifre, operatii si buton de egal." },
-  },
-  en: {
-    "basic-layout": { name: "Basic Page Structure", description: "Build a simple page with header, main content, and footer." },
-    "tic-tac-toe-grid": { name: "Tic Tac Toe", description: "Recreate a 3x3 game UI with current turn state." },
-    "product-card": { name: "Responsive Product Card", description: "Build a modern product card with a call-to-action button." },
-    "pocket-calculator": { name: "Simple Pocket Calculator", description: "Build a basic calculator with numbers, operations, and equals." },
-  },
-  es: {
-    "basic-layout": { name: "Estructura basica de pagina", description: "Crea una pagina simple con encabezado, contenido principal y pie." },
-    "tic-tac-toe-grid": { name: "Tres en raya", description: "Recrea una interfaz 3x3 con estado del turno actual." },
-    "product-card": { name: "Tarjeta de producto responsive", description: "Construye una tarjeta moderna con boton de accion." },
-    "pocket-calculator": { name: "Calculadora de bolsillo simple", description: "Crea una calculadora basica con numeros, operaciones e igual." },
-  },
-  fr: {
-    "basic-layout": { name: "Structure de page de base", description: "Construis une page simple avec en-tete, contenu principal et pied." },
-    "tic-tac-toe-grid": { name: "Morpion", description: "Recree une interface 3x3 avec l'etat du tour courant." },
-    "product-card": { name: "Carte produit responsive", description: "Construis une carte produit moderne avec bouton d'action." },
-    "pocket-calculator": { name: "Calculatrice de poche simple", description: "Cree une calculatrice simple avec chiffres, operations et egal." },
-  },
-  de: {
-    "basic-layout": { name: "Grundstruktur einer Seite", description: "Erstelle eine einfache Seite mit Header, Hauptbereich und Footer." },
-    "tic-tac-toe-grid": { name: "Tic Tac Toe", description: "Bilde eine 3x3-Spieloberflaeche mit Zugstatus nach." },
-    "product-card": { name: "Responsive Produktkarte", description: "Erstelle eine moderne Produktkarte mit Aktionsbutton." },
-    "pocket-calculator": { name: "Einfacher Taschenrechner", description: "Baue einen einfachen Rechner mit Zahlen, Operationen und Gleich." },
-  },
-  it: {
-    "basic-layout": { name: "Struttura pagina di base", description: "Crea una pagina semplice con header, contenuto principale e footer." },
-    "tic-tac-toe-grid": { name: "Tris", description: "Ricrea una UI 3x3 con stato del turno corrente." },
-    "product-card": { name: "Scheda prodotto responsive", description: "Costruisci una scheda prodotto moderna con bottone azione." },
-    "pocket-calculator": { name: "Calcolatrice tascabile semplice", description: "Crea una calcolatrice base con numeri, operazioni e uguale." },
-  },
-  pt: {
-    "basic-layout": { name: "Estrutura basica de pagina", description: "Crie uma pagina simples com cabecalho, conteudo principal e rodape." },
-    "tic-tac-toe-grid": { name: "Jogo da velha", description: "Recrie uma interface 3x3 com estado do turno atual." },
-    "product-card": { name: "Card de produto responsivo", description: "Construa um card moderno com botao de acao." },
-    "pocket-calculator": { name: "Calculadora de bolso simples", description: "Crie uma calculadora basica com numeros, operacoes e igual." },
-  },
+const clearAuthToken = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
 };
 
-const UI_TEXT: Record<
-  AiLanguage,
-  {
-    newLesson: string;
-    assistant: string;
-    askTeacher: string;
-    realtime: string;
-    adminPanel: string;
-    liveResult: string;
-    target: string;
-    aiTeacher: string;
-    online: string;
-    today: string;
-    welcome: string;
-    messagePlaceholder: string;
-    seeMore: string;
-    seeLess: string;
-    preparingLesson: string;
-    savedLessons: string;
-    aiLanguage: string;
-    cancel: string;
-    launchLesson: string;
-    defaultBadge: string;
-    close: string;
-    progressLabel: string;
-    statusNotStarted: string;
-    statusInProgress: string;
-    statusCompleted: string;
-    technologiesLabel: string;
-  }
-> = {
-  ro: {
-    newLesson: "Lecție Nouă",
-    assistant: "AI Teacher Assistant",
-    askTeacher: "Întreabă profesorul",
-    realtime: "Asistență în timp real",
-    adminPanel: "Admin Panel",
-    liveResult: "Rezultatul Tău Live",
-    target: "Obiectiv",
-    aiTeacher: "Profesor AI",
-    online: "online",
-    today: "Astăzi",
-    welcome: "Salut! Sunt aici sa te ajut. Incepe sa scrii cod pentru a replica designul de mai sus sau pune-mi o intrebare.",
-    messagePlaceholder: "Scrie un mesaj",
-    seeMore: "Vezi mai mult",
-    seeLess: "Vezi mai puțin",
-    preparingLesson: "Pregătim lecția...",
-    savedLessons: "Lectii Salvate",
-    aiLanguage: "Limba AI",
-    cancel: "Anuleaza",
-    launchLesson: "Lanseaza lectia",
-    defaultBadge: "Default",
-    close: "Inchide",
-    progressLabel: "Progres",
-    statusNotStarted: "Neinceput",
-    statusInProgress: "In progress",
-    statusCompleted: "Finalizat",
-    technologiesLabel: "Limbaje folosite",
-  },
-  en: {
-    newLesson: "New Lesson",
-    assistant: "AI Teacher Assistant",
-    askTeacher: "Ask the teacher",
-    realtime: "Real-time assistance",
-    adminPanel: "Admin Panel",
-    liveResult: "Your Live Result",
-    target: "Target",
-    aiTeacher: "AI Teacher",
-    online: "online",
-    today: "Today",
-    welcome: "Hi! I'm here to help you. Start writing code to replicate the design above or ask me a question.",
-    messagePlaceholder: "Type a message",
-    seeMore: "See more",
-    seeLess: "See less",
-    preparingLesson: "Preparing lesson...",
-    savedLessons: "Saved Lessons",
-    aiLanguage: "AI Language",
-    cancel: "Cancel",
-    launchLesson: "Launch lesson",
-    defaultBadge: "Default",
-    close: "Close",
-    progressLabel: "Progress",
-    statusNotStarted: "Not started",
-    statusInProgress: "In progress",
-    statusCompleted: "Completed",
-    technologiesLabel: "Technology used",
-  },
-  es: {
-    newLesson: "Nueva Lección",
-    assistant: "Asistente de Profesor IA",
-    askTeacher: "Preguntar al profesor",
-    realtime: "Asistencia en tiempo real",
-    adminPanel: "Panel de Admin",
-    liveResult: "Tu Resultado en Vivo",
-    target: "Objetivo",
-    aiTeacher: "Profesor IA",
-    online: "en línea",
-    today: "Hoy",
-    welcome: "¡Hola! Estoy aquí para ayudarte. Empieza a escribir código para replicar el diseño de arriba o hazme una pregunta.",
-    messagePlaceholder: "Escribe un mensaje",
-    seeMore: "Ver más",
-    seeLess: "Ver menos",
-    preparingLesson: "Preparando lección...",
-    savedLessons: "Lecciones Guardadas",
-    aiLanguage: "Idioma IA",
-    cancel: "Cancelar",
-    launchLesson: "Iniciar lección",
-    defaultBadge: "Predeterminado",
-    close: "Cerrar",
-    progressLabel: "Progreso",
-    statusNotStarted: "No iniciado",
-    statusInProgress: "En progreso",
-    statusCompleted: "Finalizado",
-    technologiesLabel: "Tecnologia usada",
-  },
-  fr: {
-    newLesson: "Nouvelle Leçon",
-    assistant: "Assistant Professeur IA",
-    askTeacher: "Demander au professeur",
-    realtime: "Assistance en temps réel",
-    adminPanel: "Panneau Admin",
-    liveResult: "Votre Résultat en Direct",
-    target: "Objectif",
-    aiTeacher: "Professeur IA",
-    online: "en ligne",
-    today: "Aujourd'hui",
-    welcome: "Salut! Je suis là pour t'aider. Commence à écrire du code pour reproduire le design ci-dessus ou pose-moi une question.",
-    messagePlaceholder: "Écrire un message",
-    seeMore: "Voir plus",
-    seeLess: "Voir moins",
-    preparingLesson: "Préparation de la leçon...",
-    savedLessons: "Leçons Enregistrées",
-    aiLanguage: "Langue IA",
-    cancel: "Annuler",
-    launchLesson: "Lancer la leçon",
-    defaultBadge: "Par défaut",
-    close: "Fermer",
-    progressLabel: "Progression",
-    statusNotStarted: "Non commence",
-    statusInProgress: "En cours",
-    statusCompleted: "Termine",
-    technologiesLabel: "Technologie utilisee",
-  },
-  de: {
-    newLesson: "Neue Lektion",
-    assistant: "KI Lehrer Assistent",
-    askTeacher: "Lehrer fragen",
-    realtime: "Echtzeit-Hilfe",
-    adminPanel: "Admin-Bereich",
-    liveResult: "Dein Live-Ergebnis",
-    target: "Ziel",
-    aiTeacher: "KI Lehrer",
-    online: "online",
-    today: "Heute",
-    welcome: "Hallo! Ich bin hier, um dir zu helfen. Fang an, Code zu schreiben, um das Design oben nachzubauen, oder stelle mir eine Frage.",
-    messagePlaceholder: "Nachricht schreiben",
-    seeMore: "Mehr anzeigen",
-    seeLess: "Weniger anzeigen",
-    preparingLesson: "Lektion wird vorbereitet...",
-    savedLessons: "Gespeicherte Lektionen",
-    aiLanguage: "KI-Sprache",
-    cancel: "Abbrechen",
-    launchLesson: "Lektion starten",
-    defaultBadge: "Standard",
-    close: "Schließen",
-    progressLabel: "Fortschritt",
-    statusNotStarted: "Nicht begonnen",
-    statusInProgress: "In Arbeit",
-    statusCompleted: "Abgeschlossen",
-    technologiesLabel: "Verwendete Technologie",
-  },
-  it: {
-    newLesson: "Nuova Lezione",
-    assistant: "Assistente Insegnante IA",
-    askTeacher: "Chiedi al professore",
-    realtime: "Assistenza in tempo reale",
-    adminPanel: "Pannello Admin",
-    liveResult: "Il Tuo Risultato Live",
-    target: "Obiettivo",
-    aiTeacher: "Professore IA",
-    online: "online",
-    today: "Oggi",
-    welcome: "Ciao! Sono qui per aiutarti. Inizia a scrivere codice per replicare il design sopra oppure fammi una domanda.",
-    messagePlaceholder: "Scrivi un messaggio",
-    seeMore: "Vedi di più",
-    seeLess: "Vedi meno",
-    preparingLesson: "Preparazione della lezione...",
-    savedLessons: "Lezioni Salvate",
-    aiLanguage: "Lingua IA",
-    cancel: "Annulla",
-    launchLesson: "Avvia lezione",
-    defaultBadge: "Predefinito",
-    close: "Chiudi",
-    progressLabel: "Progresso",
-    statusNotStarted: "Non iniziato",
-    statusInProgress: "In corso",
-    statusCompleted: "Completato",
-    technologiesLabel: "Tecnologia usata",
-  },
-  pt: {
-    newLesson: "Nova Lição",
-    assistant: "Assistente de Professor IA",
-    askTeacher: "Perguntar ao professor",
-    realtime: "Assistência em tempo real",
-    adminPanel: "Painel Admin",
-    liveResult: "Seu Resultado Ao Vivo",
-    target: "Objetivo",
-    aiTeacher: "Professor IA",
-    online: "online",
-    today: "Hoje",
-    welcome: "Olá! Estou aqui para te ajudar. Comece a escrever código para reproduzir o design acima ou me faça uma pergunta.",
-    messagePlaceholder: "Escreva uma mensagem",
-    seeMore: "Ver mais",
-    seeLess: "Ver menos",
-    preparingLesson: "Preparando lição...",
-    savedLessons: "Lições Salvas",
-    aiLanguage: "Idioma IA",
-    cancel: "Cancelar",
-    launchLesson: "Iniciar lição",
-    defaultBadge: "Padrão",
-    close: "Fechar",
-    progressLabel: "Progresso",
-    statusNotStarted: "Nao iniciado",
-    statusInProgress: "Em progresso",
-    statusCompleted: "Finalizado",
-    technologiesLabel: "Tecnologia usada",
-  },
+const clearGuestSessionSettings = () => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(GUEST_LESSON_STORAGE_KEY);
+};
+
+const setGuestLanguage = (language: AiLanguage) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(GUEST_AI_LANGUAGE_STORAGE_KEY, language);
+};
+
+const getGuestLanguage = (): AiLanguage | null => {
+  if (typeof window === 'undefined') return null;
+  const value = window.localStorage.getItem(GUEST_AI_LANGUAGE_STORAGE_KEY);
+  return isAiLanguage(value) ? value : null;
+};
+
+const setGuestLessonId = (lessonId: string) => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem(GUEST_LESSON_STORAGE_KEY, lessonId);
+};
+
+const getGuestLessonId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const value = window.sessionStorage.getItem(GUEST_LESSON_STORAGE_KEY);
+  return value?.trim() || null;
+};
+
+
+type UiText = {
+  newLesson: string;
+  assistant: string;
+  askTeacher: string;
+  realtime: string;
+  adminPanel: string;
+  liveResult: string;
+  target: string;
+  aiTeacher: string;
+  online: string;
+  today: string;
+  welcome: string;
+  messagePlaceholder: string;
+  seeMore: string;
+  seeLess: string;
+  preparingLesson: string;
+  savedLessons: string;
+  aiLanguage: string;
+  cancel: string;
+  launchLesson: string;
+  close: string;
+  statusNotStarted: string;
+  statusInProgress: string;
+  statusCompleted: string;
+  userAccount: string;
+  authLogin: string;
+  authRegister: string;
+  authFullName: string;
+  authEmail: string;
+  authPassword: string;
+  authConfirmPassword: string;
+  authPasswordsNoMatch: string;
+  authInvalidCredentials: string;
+  authMissingFields: string;
+  authEmailExists: string;
+  authUnauthorized: string;
+  authUnexpectedError: string;
+  authPendingMessage: string;
+  authCreateAccount: string;
+  authSaveProfile: string;
+  authLogout: string;
+  authDeleteAccount: string;
+  authDeleteConfirm: string;
+  authProfileSaved: string;
+  adminUserPassword: string;
+  techHtml: string;
+  techCss: string;
+  techJavascript: string;
+  techPython: string;
+  techPhp: string;
+  techSql: string;
+};
+
+const EMPTY_UI_TEXT: UiText = {
+  newLesson: '',
+  assistant: '',
+  askTeacher: '',
+  realtime: '',
+  adminPanel: '',
+  liveResult: '',
+  target: '',
+  aiTeacher: '',
+  online: '',
+  today: '',
+  welcome: '',
+  messagePlaceholder: '',
+  seeMore: '',
+  seeLess: '',
+  preparingLesson: '',
+  savedLessons: '',
+  aiLanguage: '',
+  cancel: '',
+  launchLesson: '',
+  close: '',
+  statusNotStarted: '',
+  statusInProgress: '',
+  statusCompleted: '',
+  userAccount: '',
+  authLogin: '',
+  authRegister: '',
+  authFullName: '',
+  authEmail: '',
+  authPassword: '',
+  authConfirmPassword: '',
+  authPasswordsNoMatch: '',
+  authInvalidCredentials: '',
+  authMissingFields: '',
+  authEmailExists: '',
+  authUnauthorized: '',
+  authUnexpectedError: '',
+  authPendingMessage: '',
+  authCreateAccount: '',
+  authSaveProfile: '',
+  authLogout: '',
+  authDeleteAccount: '',
+  authDeleteConfirm: '',
+  authProfileSaved: '',
+  adminUserPassword: '',
+  techHtml: '',
+  techCss: '',
+  techJavascript: '',
+  techPython: '',
+  techPhp: '',
+  techSql: '',
+};
+
+const DEFAULT_DB_GUIDE: GuideLanguageContent = {
+  howItWorks: '',
+  previous: '',
+  next: '',
+  finish: '',
+  steps: [],
+};
+
+const mergeUiText = (overrides: Record<string, string>): UiText => {
+  return { ...EMPTY_UI_TEXT, ...overrides };
 };
 
 const PROGRESS_STEPS: LessonProgress[] = ['not_started', 'in_progress', 'completed'];
-const TECHNOLOGY_LABELS: Record<Technology, string> = {
-  html: 'HTML',
-  css: 'CSS',
-  javascript: 'JavaScript',
+
+const getTechnologyLabel = (technology: Technology, ui: UiText): string => {
+  switch (technology) {
+    case 'html':
+      return ui.techHtml;
+    case 'css':
+      return ui.techCss;
+    case 'javascript':
+      return ui.techJavascript;
+    case 'python':
+      return ui.techPython;
+    case 'php':
+      return ui.techPhp;
+    case 'sql':
+      return ui.techSql;
+    default:
+      return technology;
+  }
 };
 
-const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToken: number }) => {
-  const [html, setHtml] = useState(STARTER_CODE.ro.html);
-  const [css, setCss] = useState(STARTER_CODE.ro.css);
-  const [js, setJs] = useState(STARTER_CODE.ro.js);
+const parseJsonOverride = <T,>(value: string | undefined): T | null => {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+};
+
+const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmin: () => void; onAuth: () => void; isAuthenticated: boolean; reloadToken: number }) => {
+  const [html, setHtml] = useState('');
+  const [css, setCss] = useState('');
+  const [js, setJs] = useState('');
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState('');
   const [aiLanguage, setAiLanguage] = useState<AiLanguage>('ro');
@@ -650,11 +257,14 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [guideStepIndex, setGuideStepIndex] = useState(0);
+  const [workspaceLoaded, setWorkspaceLoaded] = useState(false);
+  const [uiOverrides, setUiOverrides] = useState<Record<string, string>>({});
   const [sessionStartTime] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   );
-  const ui = UI_TEXT[aiLanguage] ?? UI_TEXT.ro;
-  const guide = GUIDE_I18N[aiLanguage] ?? GUIDE_I18N.ro;
+  const ui = mergeUiText(uiOverrides);
+  const dbGuide = parseJsonOverride<GuideLanguageContent>(uiOverrides.guide_json);
+  const guide = dbGuide ?? DEFAULT_DB_GUIDE;
   const guideSteps = guide.steps;
   const isBelow1200 = viewportWidth < 1200;
   const isBelow800 = viewportWidth < 800;
@@ -666,12 +276,14 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
 
   const activeGuideStep = guideSteps[guideStepIndex];
   const isGuideOverlayActive = isGuideOpen && !isBelow1200;
-  const activeTechnologies = exercise?.technologies?.length ? exercise.technologies : ['html', 'css', 'javascript'];
+  const activeTechnologies = exercise?.technologies ?? [];
   const hasJavaScript = activeTechnologies.includes('javascript');
 
-  const resetLessonWorkspace = (language: AiLanguage = aiLanguage, technologies?: Technology[]) => {
-    const starter = STARTER_CODE[language] ?? STARTER_CODE.ro;
-    const lessonTechnologies = technologies?.length ? technologies : ['html', 'css', 'javascript'];
+  const resetLessonWorkspace = (technologies?: Technology[], textOverrides?: Record<string, string>) => {
+    const sourceOverrides = textOverrides ?? uiOverrides;
+    const dbStarter = parseJsonOverride<{ html: string; css: string; js: string }>(sourceOverrides.starter_json);
+    const starter = dbStarter ?? { html: '', css: '', js: '' };
+    const lessonTechnologies = technologies ?? activeTechnologies;
     setHtml(starter.html);
     setCss(starter.css);
     setJs(lessonTechnologies.includes('javascript') ? starter.js : '');
@@ -730,6 +342,18 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   }, [reloadToken]);
 
   useEffect(() => {
+    const token = getAuthToken();
+    fetch(`/api/i18n?language=${encodeURIComponent(aiLanguage)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+      .then((res) => res.json())
+      .then((data: { texts?: Record<string, string> }) => {
+        setUiOverrides(data.texts || {});
+      })
+      .catch(() => {});
+  }, [aiLanguage]);
+
+  useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth);
     onResize();
     window.addEventListener('resize', onResize);
@@ -767,14 +391,61 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/settings');
+      const token = getAuthToken();
+      const guestLanguage = !token ? getGuestLanguage() : null;
+      const guestLessonId = !token ? getGuestLessonId() : null;
+      const params = new URLSearchParams();
+      if (guestLanguage) params.set('language', guestLanguage);
+      if (guestLessonId) params.set('lessonId', guestLessonId);
+      const url = params.size ? `/api/settings?${params.toString()}` : '/api/settings';
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = (await res.json()) as SettingsResponse;
-      setSelectedLessonId(data.selectedLessonId);
+      const effectiveLanguage = token ? (data.selectedAiLanguage || 'ro') : (guestLanguage || data.selectedAiLanguage || 'ro');
+      const resolvedLessonId = data.selectedLessonId || data.defaultLessonId;
+      setSelectedLessonId(resolvedLessonId);
       const nextExercise = data.exercise_json ? (JSON.parse(data.exercise_json) as Exercise) : null;
       setExercise(nextExercise);
-      const nextLanguage = data.selectedAiLanguage || 'ro';
-      setAiLanguage(nextLanguage);
-      resetLessonWorkspace(nextLanguage, nextExercise?.technologies);
+      setAiLanguage(effectiveLanguage);
+
+      let nextOverrides: Record<string, string> = uiOverrides;
+      try {
+        const i18nRes = await fetch(`/api/i18n?language=${encodeURIComponent(effectiveLanguage)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (i18nRes.ok) {
+          const i18nData = (await i18nRes.json()) as { texts?: Record<string, string> };
+          nextOverrides = i18nData.texts || {};
+          setUiOverrides(nextOverrides);
+        }
+      } catch {
+        // Keep current UI overrides if i18n fetch fails.
+      }
+
+      resetLessonWorkspace(nextExercise?.technologies, nextOverrides);
+
+      if (token && resolvedLessonId) {
+        const wsRes = await fetch(`/api/workspace?lessonId=${encodeURIComponent(resolvedLessonId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (wsRes.ok) {
+          const workspace = await wsRes.json() as {
+            codeByTech?: Partial<Record<Technology, string>>;
+            aiMessages?: { id: string; role: 'user' | 'model' | 'system'; text: string; time: string }[];
+          };
+          if (workspace.codeByTech?.html !== undefined) setHtml(workspace.codeByTech.html);
+          if (workspace.codeByTech?.css !== undefined) setCss(workspace.codeByTech.css);
+          if (workspace.codeByTech?.javascript !== undefined) setJs(workspace.codeByTech.javascript);
+          if (Array.isArray(workspace.aiMessages)) {
+            const restored = workspace.aiMessages
+              .filter((msg) => msg.role === 'user' || msg.role === 'model')
+              .map((msg) => ({ id: msg.id, role: msg.role as 'user' | 'model', text: msg.text, time: msg.time }));
+            setChatMessages(restored);
+          }
+        }
+      }
+      setWorkspaceLoaded(true);
     } catch (err) {
       console.error(err);
     } finally {
@@ -783,9 +454,8 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   };
 
   const normalizeAiMessage = (text: string) => {
-    let formatted = text.trim();
-      formatted = formatted.replace(/([^\n*])(\d+\.\s)/g, '$1\n$2');
-    formatted = formatted.replace(/(^|\n)(\d+)\.\s*([A-Za-zĂÂÎȘȘȚȚăâîșț]+)\s*:/g, '$1**$2. $3:**');
+    let formatted = text.replace(/\r/g, '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim();
+    formatted = formatted.replace(/([^\n*])(\d+\.\s)/g, '$1\n$2');
     return formatted;
   };
 
@@ -848,12 +518,16 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
     setChecking(true);
     try {
       const userCode = hasJavaScript ? { html, css, js } : { html, css };
-      const result = await getTeacherFeedback(exercise, userCode, realTime, aiLanguage);
+      const result = await getTeacherFeedback(exercise, userCode, realTime, aiLanguage, selectedLessonId);
       appendModelMessageIfUnique(result.feedback);
       if (result.isCorrect && selectedLessonId) {
+        const token = getAuthToken();
         await fetch('/api/settings', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             lessonProgress: {
               [selectedLessonId]: 'completed',
@@ -888,6 +562,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
         userMsg,
         chatMessages.map((m) => ({ role: m.role, text: m.text })),
         aiLanguage,
+        selectedLessonId,
       );
       appendModelMessageIfUnique(response);
     } catch (err) {
@@ -959,6 +634,34 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
     }
   }, [isRealTime, exercise?.title]);
 
+  useEffect(() => {
+    if (!workspaceLoaded || !selectedLessonId) return;
+    const token = getAuthToken();
+    if (!token) return;
+    const timer = setTimeout(() => {
+      const codeByTech: Partial<Record<Technology, string>> = {
+        html,
+        css,
+        ...(hasJavaScript ? { javascript: js } : {}),
+      };
+      void fetch('/api/workspace', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          lessonId: selectedLessonId,
+          codeByTech,
+          renderedOutput: srcDoc,
+          eventType: 'workspace_autosave',
+          payloadJson: { hasJavaScript },
+        }),
+      }).catch(() => {});
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [workspaceLoaded, selectedLessonId, html, css, js, hasJavaScript]);
+
   const srcDoc = `
     <html>
       <style>${css}</style>
@@ -1000,7 +703,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
     <div className={`${panelShellClass} flex flex-col bg-zinc-950 transition-opacity duration-200 ${getGuidePanelClass('editors')}`}>
       <div className={`flex flex-col border-b border-zinc-800 transition-all duration-300 ${minimizedEditors.html ? 'h-12' : 'flex-1 min-h-0'}`}>
         <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
-          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">HTML</span>
+          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{getTechnologyLabel('html', ui)}</span>
           <button onClick={() => toggleEditor('html')} className="p-1 hover:bg-zinc-800 rounded text-zinc-500">
             {minimizedEditors.html ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
           </button>
@@ -1020,7 +723,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
 
       <div className={`flex flex-col ${hasJavaScript ? 'border-b border-zinc-800' : ''} transition-all duration-300 ${minimizedEditors.css ? 'h-12' : 'flex-1 min-h-0'}`}>
         <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
-          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">CSS</span>
+          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{getTechnologyLabel('css', ui)}</span>
           <button onClick={() => toggleEditor('css')} className="p-1 hover:bg-zinc-800 rounded text-zinc-500">
             {minimizedEditors.css ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
           </button>
@@ -1041,7 +744,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
       {hasJavaScript && (
         <div className={`flex flex-col transition-all duration-300 ${minimizedEditors.js ? 'h-12' : 'flex-1 min-h-0'}`}>
           <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Javascript</span>
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{getTechnologyLabel('javascript', ui)}</span>
             <button onClick={() => toggleEditor('js')} className="p-1 hover:bg-zinc-800 rounded text-zinc-500">
               {minimizedEditors.js ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
             </button>
@@ -1199,6 +902,13 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
               </div>
             </div>
           )}
+          <button
+            onClick={onAuth}
+            className={`p-2 rounded-full transition-colors ${isAuthenticated ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200'}`}
+            title={ui.userAccount}
+          >
+            {isAuthenticated ? <Lock className="w-5 h-5" /> : <UserRound className="w-5 h-5" />}
+          </button>
           <button 
             onClick={onAdmin}
             className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-full transition-colors"
@@ -1331,6 +1041,9 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
                       <ReactMarkdown
                         components={{
                           h3: ({node, ...props}) => <strong {...props} className="block mb-1" />,
+                          ol: ({node, ...props}) => <ol {...props} className="list-decimal list-inside pl-1 my-2 space-y-1" />,
+                          ul: ({node, ...props}) => <ul {...props} className="list-disc list-inside pl-1 my-2 space-y-1" />,
+                          li: ({node, ...props}) => <li {...props} className="leading-relaxed" />,
                           pre: ({node, ...props}) => <pre {...props} className="my-2 max-w-full overflow-x-auto rounded-md bg-[#f3e2bb] p-2 border border-[#e2c98d]" />,
                           code: ({node, className, ...props}) => {
                             const isInline = !String(className || "").includes("language-");
@@ -1361,6 +1074,9 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
                                 <ReactMarkdown
                                   components={{
                                     h3: ({node, ...props}) => <strong {...props} className="block mb-1" />,
+                                    ol: ({node, ...props}) => <ol {...props} className="list-decimal list-inside pl-1 my-2 space-y-1" />,
+                                    ul: ({node, ...props}) => <ul {...props} className="list-disc list-inside pl-1 my-2 space-y-1" />,
+                                    li: ({node, ...props}) => <li {...props} className="leading-relaxed" />,
                                     pre: ({node, ...props}) => <pre {...props} className="my-2 max-w-full overflow-x-auto rounded-md bg-[#f3e2bb] p-2 border border-[#e2c98d]" />,
                                     code: ({node, className, ...props}) => {
                                       const isInline = !String(className || "").includes("language-");
@@ -1389,6 +1105,9 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
                           <ReactMarkdown
                             components={{
                               h3: ({node, ...props}) => <strong {...props} className="block mb-1" />,
+                              ol: ({node, ...props}) => <ol {...props} className="list-decimal list-inside pl-1 my-2 space-y-1" />,
+                              ul: ({node, ...props}) => <ul {...props} className="list-disc list-inside pl-1 my-2 space-y-1" />,
+                              li: ({node, ...props}) => <li {...props} className="leading-relaxed" />,
                               pre: ({node, ...props}) => <pre {...props} className="my-2 max-w-full overflow-x-auto rounded-md bg-[#f3e2bb] p-2 border border-[#e2c98d]" />,
                               code: ({node, className, ...props}) => {
                                 const isInline = !String(className || "").includes("language-");
@@ -1516,26 +1235,58 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
   const [aiLanguageOptions, setAiLanguageOptions] = useState<{ code: AiLanguage; label: string }[]>([]);
   const [lessons, setLessons] = useState<SettingsResponse['lessons']>([]);
   const [saving, setSaving] = useState(false);
-  const ui = UI_TEXT[selectedAiLanguage] ?? UI_TEXT.ro;
+  const [uiOverrides, setUiOverrides] = useState<Record<string, string>>({});
+  const ui = mergeUiText(uiOverrides);
 
   useEffect(() => {
-    fetch('/api/settings')
+    const token = getAuthToken();
+    const guestLanguage = !token ? getGuestLanguage() : null;
+    const guestLessonId = !token ? getGuestLessonId() : null;
+    const params = new URLSearchParams();
+    if (guestLanguage) params.set('language', guestLanguage);
+    if (guestLessonId) params.set('lessonId', guestLessonId);
+    const url = params.size ? `/api/settings?${params.toString()}` : '/api/settings';
+    fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
       .then((res) => res.json())
       .then((data: SettingsResponse) => {
-        setSelectedLessonId(data.selectedLessonId);
+        setSelectedLessonId(data.selectedLessonId || data.defaultLessonId);
         setDefaultLessonId(data.defaultLessonId);
-        setSelectedAiLanguage(data.selectedAiLanguage || 'ro');
+        setSelectedAiLanguage((guestLanguage || data.selectedAiLanguage || 'ro') as AiLanguage);
         setAiLanguageOptions(data.aiLanguageOptions || []);
         setLessons(data.lessons);
       });
   }, []);
 
+  useEffect(() => {
+    const token = getAuthToken();
+    fetch(`/api/i18n?language=${encodeURIComponent(selectedAiLanguage)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+      .then((res) => res.json())
+      .then((data: { texts?: Record<string, string> }) => {
+        setUiOverrides(data.texts || {});
+      })
+      .catch(() => {});
+  }, [selectedAiLanguage]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      const token = getAuthToken();
+      if (!token) {
+        setGuestLanguage(selectedAiLanguage);
+        setGuestLessonId(selectedLessonId || defaultLessonId);
+        onSaved();
+        return;
+      }
       await fetch('/api/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ selectedLessonId, selectedAiLanguage })
       });
       onSaved();
@@ -1575,7 +1326,6 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
             <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2">{ui.savedLessons}</label>
             <div className="space-y-2">
               {lessons.map((lesson) => {
-                const localized = LESSON_LABELS[selectedAiLanguage]?.[lesson.id];
                 const progressLabelMap: Record<LessonProgress, string> = {
                   not_started: ui.statusNotStarted,
                   in_progress: ui.statusInProgress,
@@ -1592,8 +1342,8 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-zinc-900">{localized?.name || lesson.name}</p>
-                      <p className="text-xs text-zinc-600 mt-1">{localized?.description || lesson.description}</p>
+                      <p className="text-sm font-semibold text-zinc-900">{lesson.name}</p>
+                      <p className="text-xs text-zinc-600 mt-1">{lesson.description}</p>
                       <div className="mt-3 grid w-full grid-cols-2 gap-3">
                         <div className="w-full min-w-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 flex items-center">
                           <div className="flex items-center justify-start gap-2 overflow-hidden whitespace-nowrap text-[11px] leading-none">
@@ -1616,7 +1366,7 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
                           <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
                             {lesson.technologies.map((technology) => (
                               <span key={`${lesson.id}-${technology}`} className="px-2 py-1 rounded-full text-[10px] font-medium bg-zinc-100 text-zinc-700 border border-zinc-200">
-                                {TECHNOLOGY_LABELS[technology]}
+                                {getTechnologyLabel(technology, ui)}
                               </span>
                             ))}
                           </div>
@@ -1652,6 +1402,7 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
               ))}
             </select>
           </div>
+
         </div>
 
         <div className="flex gap-3 px-8 py-4 border-t border-zinc-200 shrink-0 bg-white rounded-b-2xl">
@@ -1674,22 +1425,353 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
     </div>
   );
 };
+
+const AuthView = ({ onClose, onAuthChanged }: { onClose: () => void; onAuthChanged: (isAuthenticated: boolean) => void }) => {
+  const [aiLanguage, setAiLanguage] = useState<AiLanguage>(() => getGuestLanguage() || 'ro');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [uiOverrides, setUiOverrides] = useState<Record<string, string>>({});
+  const ui = mergeUiText(uiOverrides);
+
+  const mapAuthErrorToUi = (error: unknown): string => {
+    const text = typeof error === 'string' ? error : '';
+    if (text === 'Missing email or password.' || text === 'Missing required fields.') return ui.authMissingFields;
+    if (text === 'Email already exists.') return ui.authEmailExists;
+    if (text === 'Invalid credentials.') return ui.authInvalidCredentials;
+    if (text === 'Unauthorized') return ui.authUnauthorized;
+    return ui.authUnexpectedError || ui.authInvalidCredentials;
+  };
+
+  useEffect(() => {
+    const token = getAuthToken();
+    const guestLanguage = !token ? getGuestLanguage() : null;
+    const guestLessonId = !token ? getGuestLessonId() : null;
+    const params = new URLSearchParams();
+    if (guestLanguage) params.set('language', guestLanguage);
+    if (guestLessonId) params.set('lessonId', guestLessonId);
+    const url = params.size ? `/api/settings?${params.toString()}` : '/api/settings';
+
+    fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+      .then((res) => res.json())
+      .then((data: SettingsResponse) => {
+        const nextLanguage = guestLanguage || data.selectedAiLanguage;
+        if (isAiLanguage(nextLanguage)) {
+          setAiLanguage(nextLanguage);
+        }
+      })
+      .catch(() => {});
+
+    if (!token) {
+      setIsAuthenticated(false);
+      return;
+    }
+
+    setProfileLoading(true);
+    fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          setMessage(ui.authUnauthorized || ui.authUnexpectedError || ui.authInvalidCredentials);
+          return null;
+        }
+        return res.json();
+      })
+      .then((data: { user: { fullName: string; email: string } } | null) => {
+        if (!data?.user) return;
+        setIsAuthenticated(true);
+        setFullName(data.user.fullName);
+        setEmail(data.user.email);
+      })
+      .finally(() => setProfileLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    fetch(`/api/i18n?language=${encodeURIComponent(aiLanguage)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+      .then((res) => res.json())
+      .then((data: { texts?: Record<string, string> }) => {
+        setUiOverrides(data.texts || {});
+      })
+      .catch(() => {});
+  }, [aiLanguage]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mode === 'register' && password !== confirmPassword) {
+      setMessage(ui.authPasswordsNoMatch);
+      return;
+    }
+    const url = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
+    const payload =
+      mode === 'register'
+        ? { fullName: fullName.trim(), email: email.trim().toLowerCase(), password, preferredAiLanguage: aiLanguage }
+        : { email: email.trim().toLowerCase(), password };
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          setMessage(mapAuthErrorToUi(data?.error));
+          return;
+        }
+        if (typeof data?.token === 'string') {
+          setAuthToken(data.token);
+          onAuthChanged(true);
+          onClose();
+          return;
+        }
+        setMessage(ui.authUnexpectedError || ui.authInvalidCredentials);
+      })
+      .catch(() => setMessage(ui.authUnexpectedError || ui.authInvalidCredentials));
+  };
+
+  const handleSaveProfile = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    const res = await fetch('/api/auth/me', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        password: password.trim() || undefined,
+        preferredAiLanguage: aiLanguage,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setMessage(mapAuthErrorToUi(data?.error));
+      return;
+    }
+    setPassword('');
+    setConfirmPassword('');
+    setMessage(ui.authProfileSaved);
+  };
+
+  const handleLogout = async () => {
+    const token = getAuthToken();
+    if (token) {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
+    clearAuthToken();
+    clearGuestSessionSettings();
+    setIsAuthenticated(false);
+    onAuthChanged(false);
+    onClose();
+  };
+
+  const handleDeleteAccount = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    const ok = window.confirm(ui.authDeleteConfirm);
+    if (!ok) return;
+    await fetch('/api/auth/me', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+    clearAuthToken();
+    clearGuestSessionSettings();
+    setIsAuthenticated(false);
+    onAuthChanged(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-6" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md bg-white border border-zinc-200 rounded-2xl shadow-xl p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-zinc-900">{ui.userAccount}</h2>
+          <button
+            onClick={onClose}
+            className="p-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-lg transition-colors"
+            aria-label={ui.close}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {profileLoading ? (
+          <div className="py-6 flex items-center justify-center">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+          </div>
+        ) : isAuthenticated ? (
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder={ui.authFullName}
+              className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={ui.authEmail}
+              className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={ui.adminUserPassword}
+              className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+
+            {message && <p className="text-xs text-zinc-600">{message}</p>}
+
+            <button
+              type="button"
+              onClick={handleSaveProfile}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-lg py-2.5 text-sm font-semibold transition-colors"
+            >
+              {ui.authSaveProfile}
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg py-2.5 text-sm font-semibold transition-colors"
+            >
+              {ui.authLogout}
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              className="w-full bg-red-600 hover:bg-red-500 text-white rounded-lg py-2.5 text-sm font-semibold transition-colors"
+            >
+              {ui.authDeleteAccount}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2 mb-5">
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${mode === 'login' ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'}`}
+              >
+                <LogIn className="w-4 h-4" />
+                {ui.authLogin}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('register')}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${mode === 'register' ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'}`}
+              >
+                <UserPlus className="w-4 h-4" />
+                {ui.authRegister}
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {mode === 'register' && (
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder={ui.authFullName}
+                  className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              )}
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={ui.authEmail}
+                className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={ui.authPassword}
+                className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              {mode === 'register' && (
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder={ui.authConfirmPassword}
+                  className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              )}
+
+              {message && <p className="text-xs text-zinc-600">{message}</p>}
+
+              <button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-lg py-2.5 text-sm font-semibold transition-colors"
+              >
+                {mode === 'login' ? ui.authLogin : ui.authCreateAccount}
+              </button>
+            </form>
+          </>
+        )}
+      </motion.div>
+    </div>
+  );
+};
 export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+
+  useEffect(() => {
+    setIsAuthenticated(Boolean(getAuthToken()));
+  }, []);
 
   const handleSaved = () => {
     setIsAdminOpen(false);
     setReloadToken((prev) => prev + 1);
   };
 
+  const handleAuthChanged = (next: boolean) => {
+    setIsAuthenticated(next);
+    setReloadToken((prev) => prev + 1);
+  };
+
   return (
     <div className="min-h-screen">
-      <StudentView onAdmin={() => setIsAdminOpen(true)} reloadToken={reloadToken} />
+      <StudentView onAdmin={() => setIsAdminOpen(true)} onAuth={() => setIsAuthOpen(true)} isAuthenticated={isAuthenticated} reloadToken={reloadToken} />
+      {isAuthOpen && (
+        <AuthView onClose={() => setIsAuthOpen(false)} onAuthChanged={handleAuthChanged} />
+      )}
       {isAdminOpen && (
         <AdminView onClose={() => setIsAdminOpen(false)} onSaved={handleSaved} />
       )}
     </div>
   );
 }
+
 

@@ -1,4 +1,4 @@
-export type Technology = "html" | "css" | "javascript";
+export type Technology = "html" | "css" | "javascript" | "python" | "php" | "sql";
 export type LessonProgress = "not_started" | "in_progress" | "completed";
 
 export interface Exercise {
