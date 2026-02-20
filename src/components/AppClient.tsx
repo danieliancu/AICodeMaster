@@ -849,10 +849,16 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   };
 
   const getGuidePanelClass = (panelId: GuideStepId) => {
-    if (!isGuideOverlayActive || activeGuideStep?.id === panelId) {
+    if (!isGuideOverlayActive) {
       return 'opacity-100';
     }
-    return 'opacity-20 pointer-events-none select-none';
+    if (activeGuideStep?.id === panelId) {
+      if (panelId === 'teacher') {
+        return 'opacity-100 z-[55]';
+      }
+      return 'opacity-100 relative z-[55]';
+    }
+    return 'opacity-100 pointer-events-none select-none';
   };
 
   const splitGuideDescription = (text: string) => {
@@ -909,9 +915,17 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   }
 
   const headerHeight = "h-12";
+  const panelShellClass = "relative h-full rounded-xl overflow-hidden border border-zinc-800/90 shadow-[0_10px_28px_rgba(0,0,0,0.35)]";
+  const resizeHandle = (
+    <PanelResizeHandle className="w-3 flex items-center justify-center cursor-col-resize group">
+      <div className="h-20 w-2 rounded-full border border-zinc-700 bg-zinc-900/90 flex items-center justify-center transition-colors group-hover:border-blue-500 group-hover:bg-zinc-900">
+        <span className="h-6 w-[3px] rounded-full bg-zinc-500 transition-colors group-hover:bg-blue-400" />
+      </div>
+    </PanelResizeHandle>
+  );
 
   const editorsColumn = (
-    <div className={`h-full flex flex-col bg-zinc-950 transition-opacity duration-200 ${getGuidePanelClass('editors')}`}>
+    <div className={`${panelShellClass} flex flex-col bg-zinc-950 transition-opacity duration-200 ${getGuidePanelClass('editors')}`}>
       <div className={`flex flex-col border-b border-zinc-800 transition-all duration-300 ${minimizedEditors.html ? 'h-12' : 'flex-1 min-h-0'}`}>
         <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
           <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">HTML</span>
@@ -975,7 +989,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   );
 
   const livePreviewColumn = (
-    <div className={`h-full flex flex-col bg-white transition-opacity duration-200 ${getGuidePanelClass('live')}`}>
+    <div className={`${panelShellClass} flex flex-col bg-white transition-opacity duration-200 ${getGuidePanelClass('live')}`}>
       <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
         <span className="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-[pulse_0.7s_ease-in-out_infinite]" />
@@ -993,7 +1007,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   );
 
   const targetPreviewColumn = (
-    <div className={`h-full flex flex-col bg-white transition-opacity duration-200 ${getGuidePanelClass('target')}`}>
+    <div className={`${panelShellClass} flex flex-col bg-white transition-opacity duration-200 ${getGuidePanelClass('target')}`}>
       <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
         <span className="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
           <Crosshair className="w-3 h-3" />
@@ -1013,7 +1027,11 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md z-10">
+      <header
+        className={`flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md ${
+          isGuideOverlayActive && activeGuideStep?.id === 'modes' ? 'relative z-[55]' : 'z-10'
+        }`}
+      >
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-600 rounded-lg">
             <Mouse className="w-5 h-5 text-white" />
@@ -1115,13 +1133,13 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden relative">
+      <main className="flex-1 flex overflow-hidden relative p-2">
         {!isBelow1200 ? (
           <PanelGroup direction="horizontal">
             <Panel defaultSize={33} minSize={20}>{editorsColumn}</Panel>
-            <PanelResizeHandle className="w-1.5 bg-zinc-900 hover:bg-blue-600 transition-colors border-x border-zinc-800 cursor-col-resize" />
+            {resizeHandle}
             <Panel defaultSize={33} minSize={20}>{livePreviewColumn}</Panel>
-            <PanelResizeHandle className="w-1.5 bg-zinc-900 hover:bg-blue-600 transition-colors border-x border-zinc-800 cursor-col-resize" />
+            {resizeHandle}
             <Panel defaultSize={34} minSize={20}>{targetPreviewColumn}</Panel>
           </PanelGroup>
         ) : isBelow800 ? (
@@ -1129,7 +1147,7 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
         ) : (
           <PanelGroup direction="horizontal">
             <Panel defaultSize={56} minSize={28}>{editorsColumn}</Panel>
-            <PanelResizeHandle className="w-1.5 bg-zinc-900 hover:bg-blue-600 transition-colors border-x border-zinc-800 cursor-col-resize" />
+            {resizeHandle}
             <Panel defaultSize={44} minSize={26}>{livePreviewColumn}</Panel>
           </PanelGroup>
         )}
@@ -1351,8 +1369,10 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
       </AnimatePresence>
 
       {isGuideOpen && activeGuideStep && (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${isGuideOverlayActive ? 'bg-black/45' : ''}`}>
-          <div className="w-full max-w-md h-[400px] rounded-2xl border border-zinc-700 bg-zinc-900/95 p-5 shadow-2xl flex flex-col">
+        <>
+          {isGuideOverlayActive && <div className="fixed inset-0 z-40 bg-black/45" />}
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div className="w-full max-w-md h-[400px] rounded-2xl border border-zinc-700 bg-zinc-900/95 p-5 shadow-2xl flex flex-col">
             <h3 className="mt-2 text-xl font-semibold text-zinc-50 shrink-0">{activeGuideStep.title}</h3>
             <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
               {(() => {
@@ -1406,7 +1426,8 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
               )}
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
