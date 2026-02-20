@@ -6,7 +6,7 @@ import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-markup';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-javascript';
-import { CheckCircle, MessageSquare, Settings, User, Loader2, Send, X, Minimize2, Maximize2, Menu, CircleHelp, Mouse, Crosshair, Rocket } from 'lucide-react';
+import { CheckCircle, MessageSquare, Settings, User, Loader2, Send, X, Minimize2, Maximize2, Menu, CircleHelp, Mouse, Crosshair, Rocket, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import ReactMarkdown from 'react-markdown';
@@ -1157,8 +1157,9 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
                       setIsRealTime(true);
                       setIsModeMenuOpen(false);
                     }}
-                    className={`mt-1 w-full px-3 py-2 rounded-lg text-sm font-medium transition-all text-left ${isRealTime ? 'bg-blue-600 text-white' : 'text-zinc-300 hover:bg-zinc-800'}`}
+                    className={`mt-1 w-full px-3 py-2 rounded-lg text-sm font-medium transition-all text-left flex items-center gap-2 ${isRealTime ? 'bg-blue-600 text-white' : 'text-zinc-300 hover:bg-zinc-800'}`}
                   >
+                    <Activity className="w-3.5 h-3.5 text-blue-300" />
                     {ui.realtime}
                   </button>
                 </div>
@@ -1190,8 +1191,9 @@ const StudentView = ({ onAdmin, reloadToken }: { onAdmin: () => void; reloadToke
               </button>
               <button 
                 onClick={() => setIsRealTime(true)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${isRealTime ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${isRealTime ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
               >
+                <Activity className="w-3.5 h-3.5 text-blue-300" />
                 {ui.realtime}
               </button>
               </div>
@@ -1545,23 +1547,23 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[1px] flex items-center justify-center p-6" onClick={onClose}>
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-2xl max-h-[90vh] bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col"
+        className="w-full max-w-2xl max-h-[90vh] bg-white border border-zinc-200 rounded-2xl shadow-xl flex flex-col text-zinc-800"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 px-8 pt-8 pb-4 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-zinc-800 rounded-lg">
-              <Settings className="w-6 h-6 text-zinc-400" />
+            <div className="p-2 bg-zinc-100 rounded-lg">
+              <Settings className="w-6 h-6 text-zinc-600" />
             </div>
-            <h2 className="text-2xl font-bold tracking-tight">{ui.adminPanel}</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">{ui.adminPanel}</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors"
+            className="p-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-lg transition-colors"
             aria-label={ui.close}
           >
             <X className="w-5 h-5" />
@@ -1570,7 +1572,7 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
 
         <div className="space-y-6 px-8 pb-4 min-h-0 overflow-y-auto flex-1">
           <div>
-            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">{ui.savedLessons}</label>
+            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2">{ui.savedLessons}</label>
             <div className="space-y-2">
               {lessons.map((lesson) => {
                 const localized = LESSON_LABELS[selectedAiLanguage]?.[lesson.id];
@@ -1584,41 +1586,36 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
                   key={lesson.id}
                   className={`block w-full border rounded-xl p-3 cursor-pointer transition-colors ${
                     selectedLessonId === lesson.id
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-zinc-200 bg-white hover:border-zinc-300'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-zinc-100">{localized?.name || lesson.name}</p>
-                      <p className="text-xs text-zinc-400 mt-1">{localized?.description || lesson.description}</p>
+                      <p className="text-sm font-semibold text-zinc-900">{localized?.name || lesson.name}</p>
+                      <p className="text-xs text-zinc-600 mt-1">{localized?.description || lesson.description}</p>
                       <div className="mt-3 grid w-full grid-cols-2 gap-3">
-                        <div className="w-full min-w-0 rounded-lg border border-white/40 bg-white/10 p-2.5">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-white">{ui.progressLabel}</p>
-                          <div className="mt-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
-                            {PROGRESS_STEPS.map((step, index) => (
-                              <React.Fragment key={step}>
-                                <span
-                                  className={`px-2 py-1 rounded-full text-[10px] font-semibold border ${
-                                    lesson.progress === step
-                                      ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
-                                      : 'bg-zinc-900 border-zinc-700 text-zinc-400'
-                                  }`}
-                                >
-                                  {progressLabelMap[step]}
-                                </span>
-                                {index < PROGRESS_STEPS.length - 1 && (
-                                  <span className="w-6 border-t border-dashed border-zinc-600" />
-                                )}
-                              </React.Fragment>
-                            ))}
+                        <div className="w-full min-w-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 flex items-center">
+                          <div className="flex items-center justify-start gap-2 overflow-hidden whitespace-nowrap text-[11px] leading-none">
+                            {PROGRESS_STEPS.map((step, index) => {
+                              const isActive = lesson.progress === step;
+                              return (
+                                <React.Fragment key={step}>
+                                  <span className={isActive ? 'font-semibold text-blue-600' : 'font-semibold text-zinc-500'}>
+                                    {progressLabelMap[step]}
+                                  </span>
+                                  {index < PROGRESS_STEPS.length - 1 && (
+                                    <span className={`inline-block h-1 w-1 rounded-full ${isActive ? 'bg-blue-600' : 'bg-zinc-400'}`} />
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
                           </div>
                         </div>
-                        <div className="w-full min-w-0 rounded-lg border border-white/40 bg-white/10 p-2.5">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-white">{ui.technologiesLabel}</p>
-                          <div className="mt-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
+                        <div className="w-full min-w-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5">
+                          <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
                             {lesson.technologies.map((technology) => (
-                              <span key={`${lesson.id}-${technology}`} className="px-2 py-1 rounded-full text-[10px] font-semibold bg-zinc-800 text-zinc-200 border border-zinc-700">
+                              <span key={`${lesson.id}-${technology}`} className="px-2 py-1 rounded-full text-[10px] font-medium bg-zinc-100 text-zinc-700 border border-zinc-200">
                                 {TECHNOLOGY_LABELS[technology]}
                               </span>
                             ))}
@@ -1642,11 +1639,11 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">{ui.aiLanguage}</label>
+            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2">{ui.aiLanguage}</label>
             <select
               value={selectedAiLanguage}
               onChange={(e) => setSelectedAiLanguage(e.target.value as AiLanguage)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {aiLanguageOptions.map((option) => (
                 <option key={option.code} value={option.code}>
@@ -1657,17 +1654,17 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
           </div>
         </div>
 
-        <div className="flex gap-3 px-8 py-4 border-t border-zinc-800 shrink-0 bg-zinc-900 rounded-b-2xl">
+        <div className="flex gap-3 px-8 py-4 border-t border-zinc-200 shrink-0 bg-white rounded-b-2xl">
           <button 
             onClick={onClose}
-            className="flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition-colors"
+            className="flex-1 px-6 py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-semibold rounded-xl transition-colors"
           >
             {ui.cancel}
           </button>
           <button 
             onClick={handleSave}
             disabled={saving || !selectedLessonId}
-            className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2"
+            className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
             {ui.launchLesson}
@@ -1695,3 +1692,4 @@ export default function App() {
     </div>
   );
 }
+
