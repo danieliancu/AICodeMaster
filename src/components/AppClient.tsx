@@ -32,7 +32,7 @@ type SettingsResponse = {
   exercise_json: string | null;
 };
 
-type GuideStepId = 'editors' | 'live' | 'target' | 'teacher' | 'modes';
+type GuideStepId = 'editors' | 'live' | 'target' | 'xray' | 'teacher' | 'modes';
 type GuideLanguageContent = {
   howItWorks: string;
   previous: string;
@@ -690,10 +690,11 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   };
 
   const getGuidePanelClass = (panelId: GuideStepId) => {
+    const focusedPanelId: GuideStepId | undefined = activeGuideStep?.id === 'xray' ? 'target' : activeGuideStep?.id;
     if (!isGuideOverlayActive) {
       return 'opacity-100';
     }
-    if (activeGuideStep?.id === panelId) {
+    if (focusedPanelId === panelId) {
       if (panelId === 'teacher') {
         return 'opacity-100 z-[55]';
       }
@@ -1183,7 +1184,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
                 onClick={() => setIsXrayEnabled((prev) => !prev)}
                 className={`inline-flex h-10 items-center justify-center gap-1 rounded-md px-2 transition-colors ${
                   isXrayEnabled ? 'bg-blue-600 text-white hover:bg-blue-500' : 'text-blue-300 hover:bg-zinc-800 hover:text-blue-200'
-                }`}
+                } ${isGuideOverlayActive && activeGuideStep?.id === 'xray' ? 'ring-2 ring-blue-300 ring-offset-2 ring-offset-zinc-900 shadow-[0_0_0_3px_rgba(59,130,246,0.35)]' : ''}`}
                 title={`${ui.xrayModeLabel || 'X-Ray'}: ${isXrayEnabled ? (ui.xrayModeOn || 'ON') : (ui.xrayModeOff || 'OFF')}`}
                 aria-label={ui.xrayModeLabel || 'X-Ray'}
               >

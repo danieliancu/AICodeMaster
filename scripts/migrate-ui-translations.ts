@@ -1,4 +1,4 @@
-import fs from "node:fs";
+﻿import fs from "node:fs";
 import path from "node:path";
 import mysql from "mysql2/promise";
 import type { AiLanguage } from "../src/lib/languages";
@@ -611,7 +611,7 @@ const UI_DB_TEXTS: Record<AiLanguage, Record<string, string>> = {
     authInvalidCredentials: "Credenciais invalidas.",
     authMissingFields: "Preencha todos os campos obrigatorios.",
     authEmailExists: "Ja existe uma conta com este email.",
-    authUnauthorized: "Sessao expirada. Faça login novamente.",
+    authUnauthorized: "Sessao expirada. FaÃ§a login novamente.",
     authUnexpectedError: "Ocorreu um erro inesperado.",
     authPendingMessage: "O fluxo de autenticacao sera conectado ao MySQL (localhost) na proxima etapa.",
     authCreateAccount: "Criar conta",
@@ -662,7 +662,7 @@ const UI_DB_TEXTS: Record<AiLanguage, Record<string, string>> = {
       next: "Proximo",
       finish: "Concluir",
       steps: [
-        { id: "editors", title: "HTML/CSS/JS", description: "Edite estrutura, estilo e comportamento em painéis separados." },
+        { id: "editors", title: "HTML/CSS/JS", description: "Edite estrutura, estilo e comportamento em painÃ©is separados." },
         { id: "live", title: "Seu Resultado Ao Vivo", description: "Veja imediatamente o resultado do seu codigo." },
         { id: "target", title: "Modelo", description: "Compare seu resultado com o modelo atual." },
         { id: "teacher", title: "Professor IA", description: "Receba explicacoes e feedback contextual." },
@@ -679,7 +679,7 @@ const LONG_GUIDES: Record<
     previous: string;
     next: string;
     finish: string;
-    steps: { id: "editors" | "live" | "target" | "teacher" | "modes"; title: string; description: string }[];
+    steps: { id: "editors" | "live" | "target" | "xray" | "teacher" | "modes"; title: string; description: string }[];
   }
 > = {
   ro: {
@@ -691,6 +691,7 @@ const LONG_GUIDES: Record<
       { id: "editors", title: "1. Editor", description: "Scrii codul in editor (HTML pentru structura, CSS pentru stil, JS pentru comportament)." },
       { id: "live", title: "2. Rezultatul tau live", description: "Verifici imediat in preview live ce produce codul tau." },
       { id: "target", title: "3. Model", description: "Compari rezultatul tau cu Modelul si ajustezi pana se potrivesc." },
+      { id: "xray", title: "4. Butonul X-Ray (Model)", description: "Activezi X-Ray din header-ul panoului Model pentru a vedea scheletul vizual al paginii. Cand este pornit, elementele primesc contururi pe tipuri, la hover vezi detalii rapide, iar la click se deschide inspectorul cu CSS complet si box model. Cand il opresti, preview-ul revine la afisarea normala." },
       { id: "teacher", title: "Profesor AI", description: "Profesorul AI completeaza fluxul de lucru atunci cand ai nevoie de explicatii, feedback sau directie tehnica. Avantajul este asistenta contextuala, bazata pe exercitiul activ si pe codul scris. Folosit impreuna cu editorul, rezultatul live si obiectivul, chatul accelereaza rezolvarea blocajelor si te ajuta sa intelegi nu doar ce sa schimbi, ci si de ce." },
       { id: "modes", title: "Intreaba profesorul / Asistenta in timp real", description: "Cele doua moduri controleaza cum primesti feedback. Intreaba profesorul declanseaza verificare la cerere, utila cand vrei validare punctuala dupa o schimbare importanta. Asistenta in timp real monitorizeaza continuu progresul si ofera ghidaj constant. Folosite corect impreuna, reduci incercarile inutile si ajustezi mai rapid codul in functie de obiectiv." },
     ],
@@ -704,6 +705,7 @@ const LONG_GUIDES: Record<
       { id: "editors", title: "1. Editor", description: "Write your code in the editor (HTML for structure, CSS for style, JS for behavior)." },
       { id: "live", title: "2. Your Live Result", description: "Check immediately in live preview what your code produces." },
       { id: "target", title: "3. Model", description: "Compare your result with the Model and adjust until they match." },
+      { id: "xray", title: "4. X-Ray button (Model)", description: "Turn on X-Ray from the Model panel header to reveal the page blueprint. When enabled, elements get structural outlines, hover shows quick details, and click opens the inspector drawer with full CSS and box model. Turn it off to return to the normal preview." },
       { id: "teacher", title: "AI Teacher", description: "The AI Teacher is the support layer for explanations, feedback, and next-step guidance when you get stuck. Its key benefit is contextual help based on the active exercise and your current code. Combined with the editor, live result, and target view, it speeds up problem solving and improves understanding of both what to change and why." },
       { id: "modes", title: "Ask the teacher / Real-time assistance", description: "These two buttons control how feedback is delivered. Ask the teacher runs an on-demand review, useful when you want a focused check after a meaningful update. Real-time assistance keeps guidance active while you work and helps catch issues earlier. Using both modes strategically creates faster iteration and a cleaner path to the target result." },
     ],
@@ -717,6 +719,7 @@ const LONG_GUIDES: Record<
       { id: "editors", title: "1. Editor", description: "Escribe tu codigo en el editor (HTML para estructura, CSS para estilo, JS para comportamiento)." },
       { id: "live", title: "2. Tu Resultado en Vivo", description: "Revisa de inmediato en preview en vivo lo que produce tu codigo." },
       { id: "target", title: "3. Modelo", description: "Compara tu resultado con el Modelo y ajusta hasta que coincidan." },
+      { id: "xray", title: "4. Boton X-Ray (Modelo)", description: "Activa X-Ray desde el header del panel Modelo para ver el esqueleto visual de la pagina. Cuando esta activo, los elementos reciben contornos por tipo, al pasar el cursor ves detalles rapidos y al hacer click se abre el inspector con CSS completo y box model. Al desactivarlo, vuelves al preview normal." },
       { id: "teacher", title: "Profesor IA", description: "El Profesor IA complementa el flujo cuando necesitas explicaciones, retroalimentacion o direccion tecnica. La ventaja principal es la ayuda contextual basada en el ejercicio activo y en tu implementacion actual. Integrado con editor, resultado en vivo y objetivo, acelera la resolucion de bloqueos y mejora la comprension tecnica." },
       { id: "modes", title: "Preguntar al profesor / Asistencia en tiempo real", description: "Estos dos botones definen como recibes feedback. Preguntar al profesor ejecuta una revision bajo demanda, ideal para validar cambios importantes en momentos clave. Asistencia en tiempo real mantiene orientacion continua mientras avanzas. Combinarlos de forma inteligente acelera la iteracion y mejora la alineacion con el objetivo del ejercicio." },
     ],
@@ -728,8 +731,9 @@ const LONG_GUIDES: Record<
     finish: "Terminer",
     steps: [
       { id: "editors", title: "1. Editeur", description: "Ecris ton code dans l'editeur (HTML pour la structure, CSS pour le style, JS pour le comportement)." },
-      { id: "live", title: "2. Votre Resultat en Direct", description: "Verifie immediatement dans l'aperçu en direct ce que produit ton code." },
+      { id: "live", title: "2. Votre Resultat en Direct", description: "Verifie immediatement dans l'aperÃ§u en direct ce que produit ton code." },
       { id: "target", title: "3. Modele", description: "Compare ton resultat avec le Modele et ajuste jusqu'a ce que cela corresponde." },
+      { id: "xray", title: "4. Bouton X-Ray (Modele)", description: "Active X-Ray depuis le header du panneau Modele pour afficher le squelette visuel de la page. Quand il est actif, les elements recoivent des contours par type, le survol affiche des details rapides, et le clic ouvre l'inspecteur avec le CSS complet et le box model. Desactive-le pour revenir a l'apercu normal." },
       { id: "teacher", title: "Professeur IA", description: "Le Professeur IA apporte une assistance contextualisee quand vous avez besoin d'explications, de feedback ou d'orientation technique. Son avantage est de s'appuyer sur l'exercice actif et votre code en cours. Combine aux autres panneaux, il accelere la resolution des blocages et renforce la comprehension." },
       { id: "modes", title: "Demander au professeur / Assistance en temps reel", description: "Ces deux boutons definissent le mode de feedback. Demander au professeur lance une verification a la demande, pratique pour valider une etape importante. Assistance en temps reel maintient un accompagnement continu pendant le travail. Leur combinaison permet d'iterer plus vite et d'aligner plus efficacement votre resultat avec l'objectif." },
     ],
@@ -743,6 +747,7 @@ const LONG_GUIDES: Record<
       { id: "editors", title: "1. Editor", description: "Schreibe deinen Code im Editor (HTML fuer Struktur, CSS fuer Stil, JS fuer Verhalten)." },
       { id: "live", title: "2. Dein Live-Ergebnis", description: "Pruefe sofort in der Live-Vorschau, was dein Code erzeugt." },
       { id: "target", title: "3. Modell", description: "Vergleiche dein Ergebnis mit dem Modell und passe es an, bis es passt." },
+      { id: "xray", title: "4. X-Ray Schalter (Modell)", description: "Aktiviere X-Ray im Header des Modell-Panels, um das visuelle Seiten-Skelett zu sehen. Wenn aktiv, erhalten Elemente strukturierte Umrisse nach Typ, Hover zeigt schnelle Details, und Klick oeffnet den Inspector mit vollem CSS und Box-Model. Deaktiviere X-Ray fuer die normale Vorschau." },
       { id: "teacher", title: "KI Lehrer", description: "Der KI-Lehrer unterstuetzt dich mit Erklaerungen, Feedback und konkreten naechsten Schritten, wenn du feststeckst. Der wichtigste Vorteil ist kontextbezogene Hilfe auf Basis der aktiven Aufgabe und deines aktuellen Codes. Zusammen mit den anderen Bereichen beschleunigt das die Problemloesung und verbessert dein Verstaendnis." },
       { id: "modes", title: "Lehrer fragen / Echtzeit-Hilfe", description: "Diese beiden Schaltflaechen steuern, wie Rueckmeldung erfolgt. Lehrer fragen startet eine gezielte Pruefung auf Anfrage und ist ideal fuer punktuelle Validierung. Echtzeit-Hilfe begleitet den Prozess kontinuierlich und erkennt Probleme frueher. Der kombinierte Einsatz verkuerzt Iterationen und fuehrt schneller zum Zielergebnis." },
     ],
@@ -756,6 +761,7 @@ const LONG_GUIDES: Record<
       { id: "editors", title: "1. Editor", description: "Scrivi il codice nell'editor (HTML per la struttura, CSS per lo stile, JS per il comportamento)." },
       { id: "live", title: "2. Il Tuo Risultato Live", description: "Controlla subito in anteprima live cosa produce il tuo codice." },
       { id: "target", title: "3. Modello", description: "Confronta il tuo risultato con il Modello e correggi finche coincidono." },
+      { id: "xray", title: "4. Pulsante X-Ray (Modello)", description: "Attiva X-Ray dall'header del pannello Modello per vedere lo scheletro visivo della pagina. Quando e attivo, gli elementi ricevono contorni per categoria, al passaggio del mouse vedi dettagli rapidi e al click si apre l'inspector con CSS completo e box model. Disattivalo per tornare all'anteprima normale." },
       { id: "teacher", title: "Professore IA", description: "Il Professore IA completa il flusso quando servono spiegazioni, feedback o guida tecnica. Il vantaggio chiave e l'assistenza contestuale basata sull'esercizio attivo e sul codice attuale. Integrato con editor, risultato live e obiettivo, accelera lo sblocco dei problemi e migliora la comprensione." },
       { id: "modes", title: "Chiedi al professore / Assistenza in tempo reale", description: "Questi due pulsanti definiscono come ricevere feedback. Chiedi al professore avvia una revisione su richiesta, utile per controlli mirati dopo modifiche importanti. Assistenza in tempo reale mantiene supporto continuo durante lo sviluppo. Usarli insieme in modo strategico riduce i tentativi inutili e accelera il raggiungimento dell'obiettivo." },
     ],
@@ -769,6 +775,7 @@ const LONG_GUIDES: Record<
       { id: "editors", title: "1. Editor", description: "Escreva seu codigo no editor (HTML para estrutura, CSS para estilo, JS para comportamento)." },
       { id: "live", title: "2. Seu Resultado Ao Vivo", description: "Confira imediatamente no preview ao vivo o que seu codigo produz." },
       { id: "target", title: "3. Modelo", description: "Compare seu resultado com o Modelo e ajuste ate ficar igual." },
+      { id: "xray", title: "4. Botao X-Ray (Modelo)", description: "Ative o X-Ray no header do painel Modelo para ver o esqueleto visual da pagina. Quando ativo, os elementos recebem contornos por tipo, o hover mostra detalhes rapidos e o clique abre o inspetor com CSS completo e box model. Desative para voltar ao preview normal." },
       { id: "teacher", title: "Professor IA", description: "O Professor IA complementa o fluxo quando voce precisa de explicacoes, feedback ou orientacao tecnica. O principal beneficio e a ajuda contextual, baseada no exercicio ativo e no seu codigo atual. Integrado com editor, resultado ao vivo e objetivo, acelera a resolucao de bloqueios e melhora o aprendizado." },
       { id: "modes", title: "Perguntar ao professor / Assistencia em tempo real", description: "Esses dois botoes controlam como o feedback acontece. Perguntar ao professor faz uma revisao sob demanda, ideal para validar alteracoes importantes em momentos especificos. Assistencia em tempo real oferece acompanhamento continuo durante a construcao. O uso combinado acelera iteracoes e melhora o alinhamento com o objetivo." },
     ],
@@ -811,4 +818,5 @@ run().catch((error) => {
   console.error("UI translation migration failed:", error);
   process.exit(1);
 });
+
 
