@@ -976,13 +976,41 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
 
       function pickMap(style, props) {
         const out = {};
-        props.forEach((prop) => { out[prop] = style.getPropertyValue(prop) || ''; });
+        props.forEach((prop) => {
+          const value = roundPxValues((style.getPropertyValue(prop) || '').trim());
+          if (!shouldKeepCssProp(prop, value)) return;
+          out[prop] = value;
+        });
         return out;
+      }
+
+      function roundPxValues(value) {
+        return value.replace(/(-?\\d*\\.?\\d+)px\\b/gi, (_, num) => {
+          const parsed = Number(num);
+          if (!Number.isFinite(parsed)) return '0px';
+          const rounded = Math.round(parsed / 5) * 5;
+          return rounded + 'px';
+        });
+      }
+
+      function isAllZeroNumbers(value) {
+        const compact = value.replace(/\\s+/g, ' ').trim();
+        return /^(0(?:\\.0+)?[a-z%]*)(\\s+0(?:\\.0+)?[a-z%]*)*$/.test(compact);
+      }
+
+      function shouldKeepCssProp(prop, value) {
+        if (!value) return false;
+        const normalized = value.toLowerCase();
+        if (normalized === 'auto' || normalized === 'none' || normalized === 'normal') return false;
+        if (isAllZeroNumbers(normalized)) return false;
+        if (prop.startsWith('border') && /^0(?:\\.0+)?[a-z%]*\\s+none\\b/.test(normalized)) return false;
+        return true;
       }
 
       function px(value) {
         const n = parseFloat(value || '0');
-        return Number.isFinite(n) ? n.toFixed(1) + 'px' : '0px';
+        if (!Number.isFinite(n)) return '0px';
+        return (Math.round(n / 5) * 5) + 'px';
       }
 
       function serializeElement(el, point) {
@@ -991,18 +1019,21 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
           ? el.className.trim().split(/\\s+/).filter(Boolean).slice(0, 3).map((c) => '.' + c).join(' ')
           : '';
         const keyCss = pickMap(style, ['display', 'position', 'width', 'height', 'gap', 'justify-content', 'align-items']);
-        const boxModel = {
+        const boxModelRaw = {
           width: px(style.width),
           height: px(style.height),
           margin: [style.marginTop, style.marginRight, style.marginBottom, style.marginLeft].map(px).join(' '),
           padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(px).join(' '),
-          border: style.border || '',
+          border: roundPxValues(style.border || ''),
         };
+        const boxModel = Object.fromEntries(
+          Object.entries(boxModelRaw).filter(([prop, value]) => shouldKeepCssProp(prop, String(value || '').trim()))
+        );
         const fullCss = {
           layout: pickMap(style, ['display', 'position', 'top', 'right', 'bottom', 'left', 'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height', 'flex-direction', 'justify-content', 'align-items', 'gap', 'grid-template-columns', 'grid-template-rows']),
-          spacing: pickMap(style, ['margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'border', 'border-radius', 'box-sizing']),
+          spacing: pickMap(style, ['margin', 'padding', 'border', 'border-radius', 'box-sizing']),
           typography: pickMap(style, ['font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing', 'text-align', 'text-transform', 'color']),
-          visual: pickMap(style, ['background', 'background-color', 'box-shadow', 'opacity', 'overflow', 'z-index']),
+          visual: pickMap(style, ['background-color', 'box-shadow', 'opacity', 'overflow', 'z-index']),
         };
         return {
           tag: el.tagName.toLowerCase(),
@@ -1283,7 +1314,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
                       ))}
                     </div>
                   </div>
-                  {Object.entries(selectedXrayNode.fullCss).map(([group, entries]) => (
+                  {Object.entries(selectedXrayNode.fullCss).filter(([, entries]) => Object.keys(entries).length > 0).map(([group, entries]) => (
                     <div key={group} className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
                       <div className="flex items-center gap-2">
                         <p className="text-[18px] font-semibold capitalize text-amber-300">{group}</p>
@@ -1300,7 +1331,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
                       </div>
                       <div className="mt-1 space-y-1 text-zinc-300">
                         {Object.entries(entries).map(([prop, value]) => (
-                          <p key={prop}><span className="text-zinc-400">{prop}</span>: {value || '-'}</p>
+                          <p key={prop}><span className="text-zinc-400">{prop}</span>: {value}</p>
                         ))}
                       </div>
                     </div>
