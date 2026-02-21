@@ -6,7 +6,7 @@ import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-markup';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-javascript';
-import { CheckCircle, MessageSquare, Settings, User, Loader2, Send, X, Minimize2, Maximize2, Menu, CircleHelp, Mouse, Crosshair, Rocket, Activity, UserRound, LogIn, UserPlus, Lock } from 'lucide-react';
+import { CheckCircle, MessageSquare, Settings, User, Loader2, Send, X, Minimize2, Maximize2, Menu, CircleHelp, Mouse, Rocket, Activity, UserRound, LogIn, UserPlus, Lock, ArrowUpDown, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import ReactMarkdown from 'react-markdown';
@@ -18,6 +18,7 @@ type SettingsResponse = {
   defaultLessonId: string;
   selectedLessonId: string;
   selectedAiLanguage: AiLanguage;
+  preferredEditorTheme?: 'light' | 'dark';
   aiLanguageOptions: { code: AiLanguage; label: string }[];
   lessons: {
     id: string;
@@ -42,6 +43,8 @@ type GuideLanguageContent = {
 const AUTH_TOKEN_STORAGE_KEY = 'aicodemaster_auth_token';
 const GUEST_AI_LANGUAGE_STORAGE_KEY = 'aicodemaster_guest_ai_language';
 const GUEST_LESSON_STORAGE_KEY = 'aicodemaster_guest_lesson_id';
+const GUEST_EDITOR_THEME_STORAGE_KEY = 'aicodemaster_guest_editor_theme';
+const WORKSPACE_FLOW_SEEN_STORAGE_KEY = 'aicodemaster_workspace_flow_seen';
 
 const getAuthToken = () => {
   if (typeof window === 'undefined') return null;
@@ -83,6 +86,17 @@ const getGuestLessonId = (): string | null => {
   if (typeof window === 'undefined') return null;
   const value = window.sessionStorage.getItem(GUEST_LESSON_STORAGE_KEY);
   return value?.trim() || null;
+};
+
+const setGuestEditorTheme = (theme: 'light' | 'dark') => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(GUEST_EDITOR_THEME_STORAGE_KEY, theme);
+};
+
+const getGuestEditorTheme = (): 'light' | 'dark' | null => {
+  if (typeof window === 'undefined') return null;
+  const value = window.localStorage.getItem(GUEST_EDITOR_THEME_STORAGE_KEY);
+  return value === 'dark' || value === 'light' ? value : null;
 };
 
 
@@ -137,6 +151,16 @@ type UiText = {
   techPython: string;
   techPhp: string;
   techSql: string;
+  workspaceFlowTitle: string;
+  workspaceFlowDescription: string;
+  panelEditorsTitle: string;
+  panelLiveTitle: string;
+  panelTargetTitle: string;
+  panelEditorsHint: string;
+  panelLiveHint: string;
+  panelTargetHint: string;
+  startGuideCta: string;
+  dismissGuideCta: string;
 };
 
 const EMPTY_UI_TEXT: UiText = {
@@ -190,6 +214,16 @@ const EMPTY_UI_TEXT: UiText = {
   techPython: '',
   techPhp: '',
   techSql: '',
+  workspaceFlowTitle: '',
+  workspaceFlowDescription: '',
+  panelEditorsTitle: '',
+  panelLiveTitle: '',
+  panelTargetTitle: '',
+  panelEditorsHint: '',
+  panelLiveHint: '',
+  panelTargetHint: '',
+  startGuideCta: '',
+  dismissGuideCta: '',
 };
 
 const DEFAULT_DB_GUIDE: GuideLanguageContent = {
@@ -258,6 +292,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [guideStepIndex, setGuideStepIndex] = useState(0);
   const [workspaceLoaded, setWorkspaceLoaded] = useState(false);
+  const [isEditorsLightMode, setIsEditorsLightMode] = useState(true);
   const [uiOverrides, setUiOverrides] = useState<Record<string, string>>({});
   const [sessionStartTime] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -273,6 +308,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   const seenModelMessagesRef = useRef<Set<string>>(new Set());
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatWasOpenBeforeGuideRef = useRef(false);
+  const lastSyncedEditorThemeRef = useRef<'light' | 'dark' | null>(null);
 
   const activeGuideStep = guideSteps[guideStepIndex];
   const isGuideOverlayActive = isGuideOpen && !isBelow1200;
@@ -408,6 +444,11 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
       const nextExercise = data.exercise_json ? (JSON.parse(data.exercise_json) as Exercise) : null;
       setExercise(nextExercise);
       setAiLanguage(effectiveLanguage);
+      const nextEditorTheme = token
+        ? (data.preferredEditorTheme === 'dark' ? 'dark' : 'light')
+        : (getGuestEditorTheme() ?? 'light');
+      lastSyncedEditorThemeRef.current = null;
+      setIsEditorsLightMode(nextEditorTheme === 'light');
 
       let nextOverrides: Record<string, string> = uiOverrides;
       try {
@@ -585,6 +626,9 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   const finishGuide = () => {
     setIsGuideOpen(false);
     setGuideStepIndex(0);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(WORKSPACE_FLOW_SEEN_STORAGE_KEY, 'true');
+    }
     if (!chatWasOpenBeforeGuideRef.current) {
       setIsChatOpen(false);
     }
@@ -662,6 +706,42 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
     return () => clearTimeout(timer);
   }, [workspaceLoaded, selectedLessonId, html, css, js, hasJavaScript]);
 
+  useEffect(() => {
+    if (!workspaceLoaded || isGuideOpen || !guideSteps.length) return;
+    if (typeof window === 'undefined') return;
+    const flowSeen = window.localStorage.getItem(WORKSPACE_FLOW_SEEN_STORAGE_KEY) === 'true';
+    if (flowSeen) return;
+    chatWasOpenBeforeGuideRef.current = isChatOpen;
+    setGuideStepIndex(0);
+    setIsGuideOpen(true);
+  }, [workspaceLoaded, guideSteps.length, isGuideOpen, isChatOpen]);
+
+  useEffect(() => {
+    if (!workspaceLoaded) return;
+    const token = getAuthToken();
+
+    const currentTheme: 'light' | 'dark' = isEditorsLightMode ? 'light' : 'dark';
+    if (!token) {
+      setGuestEditorTheme(currentTheme);
+      return;
+    }
+    if (lastSyncedEditorThemeRef.current === null) {
+      lastSyncedEditorThemeRef.current = currentTheme;
+      return;
+    }
+    if (lastSyncedEditorThemeRef.current === currentTheme) return;
+
+    lastSyncedEditorThemeRef.current = currentTheme;
+    void fetch('/api/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ preferredEditorTheme: currentTheme }),
+    }).catch(() => {});
+  }, [workspaceLoaded, isEditorsLightMode]);
+
   const srcDoc = `
     <html>
       <style>${css}</style>
@@ -691,6 +771,20 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
 
   const headerHeight = "h-12";
   const panelShellClass = "relative h-full rounded-xl overflow-hidden border border-zinc-800/90 shadow-[0_10px_28px_rgba(0,0,0,0.35)]";
+  const workflowTitle = ui.workspaceFlowTitle || 'Workflow';
+  const workflowDescription =
+    ui.workspaceFlowDescription || '1 Write in the editor -> 2 Check live result -> 3 Match the model';
+  const editorsPanelTitle = ui.panelEditorsTitle || 'Editors';
+  const livePanelTitle = ui.panelLiveTitle || ui.liveResult;
+  const targetPanelTitle = ui.panelTargetTitle || ui.target;
+  const editorsPanelHint = ui.panelEditorsHint || 'Write and update your HTML, CSS, and JS here.';
+  const livePanelHint = ui.panelLiveHint || 'See what your current code produces in real time.';
+  const targetPanelHint = ui.panelTargetHint || 'Compare your output with the model in panel 3.';
+  const editorsContainerBgClass = isEditorsLightMode ? 'bg-zinc-50 text-zinc-900' : 'bg-zinc-950 text-zinc-100';
+  const editorsHeaderBgClass = isEditorsLightMode ? 'bg-zinc-100 border-zinc-200' : 'bg-zinc-900 border-zinc-800';
+  const editorsSectionBorderClass = isEditorsLightMode ? 'border-zinc-200' : 'border-zinc-800';
+  const editorsLabelClass = isEditorsLightMode ? 'text-zinc-700' : 'text-zinc-500';
+  const editorsButtonClass = isEditorsLightMode ? 'text-zinc-600 hover:bg-zinc-200' : 'text-zinc-500 hover:bg-zinc-800';
   const resizeHandle = (
     <PanelResizeHandle className="w-3 flex items-center justify-center cursor-col-resize group">
       <div className="h-20 w-2 rounded-full border border-zinc-700 bg-zinc-900/90 flex items-center justify-center transition-colors group-hover:border-blue-500 group-hover:bg-zinc-900">
@@ -700,11 +794,31 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   );
 
   const editorsColumn = (
-    <div className={`${panelShellClass} flex flex-col bg-zinc-950 transition-opacity duration-200 ${getGuidePanelClass('editors')}`}>
-      <div className={`flex flex-col border-b border-zinc-800 transition-all duration-300 ${minimizedEditors.html ? 'h-12' : 'flex-1 min-h-0'}`}>
-        <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
-          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{getTechnologyLabel('html', ui)}</span>
-          <button onClick={() => toggleEditor('html')} className="p-1 hover:bg-zinc-800 rounded text-zinc-500">
+    <div className={`${panelShellClass} flex flex-col transition-opacity duration-200 ${editorsContainerBgClass} ${getGuidePanelClass('editors')}`}>
+      <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900">
+        <div className="relative pr-12">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold leading-none text-white">
+              1
+            </span>
+            <p className="text-xs font-bold text-blue-400 uppercase tracking-widest">{editorsPanelTitle}</p>
+          </div>
+          <p className="text-[11px] text-zinc-300">{editorsPanelHint}</p>
+          <button
+            type="button"
+            onClick={() => setIsEditorsLightMode((prev) => !prev)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex h-10 w-10 items-center justify-center rounded-md text-blue-300 hover:bg-zinc-800 hover:text-blue-200 transition-colors"
+            title="Editor theme"
+            aria-label="Toggle editor theme"
+          >
+            {isEditorsLightMode ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+      <div className={`flex flex-col border-b ${editorsSectionBorderClass} transition-all duration-300 ${minimizedEditors.html ? 'h-12' : 'flex-1 min-h-0'}`}>
+        <div className={`flex items-center justify-between px-4 ${headerHeight} border-b shrink-0 ${editorsHeaderBgClass}`}>
+          <span className={`text-xs font-bold uppercase tracking-widest ${editorsLabelClass}`}>{getTechnologyLabel('html', ui)}</span>
+          <button onClick={() => toggleEditor('html')} className={`p-1 rounded ${editorsButtonClass}`}>
             {minimizedEditors.html ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
           </button>
         </div>
@@ -721,10 +835,10 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         )}
       </div>
 
-      <div className={`flex flex-col ${hasJavaScript ? 'border-b border-zinc-800' : ''} transition-all duration-300 ${minimizedEditors.css ? 'h-12' : 'flex-1 min-h-0'}`}>
-        <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
-          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{getTechnologyLabel('css', ui)}</span>
-          <button onClick={() => toggleEditor('css')} className="p-1 hover:bg-zinc-800 rounded text-zinc-500">
+      <div className={`flex flex-col ${hasJavaScript ? `border-b ${editorsSectionBorderClass}` : ''} transition-all duration-300 ${minimizedEditors.css ? 'h-12' : 'flex-1 min-h-0'}`}>
+        <div className={`flex items-center justify-between px-4 ${headerHeight} border-b shrink-0 ${editorsHeaderBgClass}`}>
+          <span className={`text-xs font-bold uppercase tracking-widest ${editorsLabelClass}`}>{getTechnologyLabel('css', ui)}</span>
+          <button onClick={() => toggleEditor('css')} className={`p-1 rounded ${editorsButtonClass}`}>
             {minimizedEditors.css ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
           </button>
         </div>
@@ -743,9 +857,9 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
 
       {hasJavaScript && (
         <div className={`flex flex-col transition-all duration-300 ${minimizedEditors.js ? 'h-12' : 'flex-1 min-h-0'}`}>
-          <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{getTechnologyLabel('javascript', ui)}</span>
-            <button onClick={() => toggleEditor('js')} className="p-1 hover:bg-zinc-800 rounded text-zinc-500">
+          <div className={`flex items-center justify-between px-4 ${headerHeight} border-b shrink-0 ${editorsHeaderBgClass}`}>
+            <span className={`text-xs font-bold uppercase tracking-widest ${editorsLabelClass}`}>{getTechnologyLabel('javascript', ui)}</span>
+            <button onClick={() => toggleEditor('js')} className={`p-1 rounded ${editorsButtonClass}`}>
               {minimizedEditors.js ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
             </button>
           </div>
@@ -767,11 +881,14 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
 
   const livePreviewColumn = (
     <div className={`${panelShellClass} flex flex-col bg-white transition-opacity duration-200 ${getGuidePanelClass('live')}`}>
-      <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
-        <span className="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-[pulse_0.7s_ease-in-out_infinite]" />
-          {ui.liveResult}
-        </span>
+      <div className="px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold leading-none text-white">
+            2
+          </span>
+          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">{livePanelTitle}</span>
+        </div>
+        <p className="mt-0.5 text-[11px] text-zinc-300">{livePanelHint}</p>
       </div>
       <div className="flex-1">
         <iframe
@@ -785,11 +902,25 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
 
   const targetPreviewColumn = (
     <div className={`${panelShellClass} flex flex-col bg-white transition-opacity duration-200 ${getGuidePanelClass('target')}`}>
-      <div className={`flex items-center justify-between px-4 ${headerHeight} bg-zinc-900 border-b border-zinc-800 shrink-0`}>
-        <span className="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
-          <Crosshair className="w-3 h-3" />
-          {ui.target}
-        </span>
+      <div className="px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0">
+        <div className="relative pr-12">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold leading-none text-white">
+              3
+            </span>
+            <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">{targetPanelTitle}</span>
+          </div>
+          <p className="mt-0.5 text-[11px] text-zinc-300">{targetPanelHint}</p>
+          <button
+            type="button"
+            onClick={onAdmin}
+            className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex h-10 w-10 items-center justify-center rounded-md text-blue-300 hover:bg-zinc-800 hover:text-blue-200 transition-colors"
+            title={ui.adminPanel}
+            aria-label={ui.adminPanel}
+          >
+            <ArrowUpDown className="h-5 w-5" />
+          </button>
+        </div>
       </div>
       <div className="flex-1">
         <iframe
@@ -815,7 +946,9 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
           </div>
           <div>
             <h1 className="font-bold text-lg tracking-tight">{exercise?.title || ui.newLesson}</h1>
-            <p className="text-xs text-zinc-400 font-mono uppercase tracking-widest">{ui.assistant}</p>
+            <p className="mt-1 text-[11px] text-blue-300">
+              {workflowDescription}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-4 relative">
@@ -838,7 +971,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
                     className="w-full px-3 py-2 rounded-lg text-sm font-medium transition-all text-left text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
                   >
                     <CircleHelp className="w-3.5 h-3.5 text-blue-400" />
-                    {guide.howItWorks}
+                    {ui.startGuideCta || guide.howItWorks}
                   </button>
                   <button
                     onClick={() => {
@@ -850,9 +983,13 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
                       setIsModeMenuOpen(false);
                     }}
                     disabled={!isRealTime && checking}
-                    className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${!isRealTime ? 'bg-zinc-700 text-white' : 'text-zinc-300 hover:bg-zinc-800'}`}
+                    className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${!isRealTime ? 'bg-blue-600 text-white' : 'text-zinc-300 hover:bg-zinc-800'}`}
                   >
-                    {!isRealTime && (checking ? <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" /> : <CheckCircle className="w-3.5 h-3.5 text-blue-400" />)}
+                    {!isRealTime && checking ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                    ) : (
+                      <CheckCircle className={`w-3.5 h-3.5 ${!isRealTime ? 'text-blue-300' : 'text-blue-400'}`} />
+                    )}
                     {ui.askTeacher}
                   </button>
                   <button
@@ -875,7 +1012,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
                 className="px-4 py-1.5 rounded-full text-sm font-medium transition-all bg-zinc-800 text-zinc-200 hover:bg-zinc-700 flex items-center gap-2"
               >
                 <CircleHelp className="w-3.5 h-3.5 text-blue-400" />
-                {guide.howItWorks}
+                {ui.startGuideCta || guide.howItWorks}
               </button>
               <div className="flex bg-zinc-800 rounded-full p-1">
               <button 
@@ -887,9 +1024,13 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
                   }
                 }}
                 disabled={!isRealTime && checking}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${!isRealTime ? 'bg-zinc-700 text-white shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}` }
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${!isRealTime ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}` }
               >
-                {!isRealTime && (checking ? <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" /> : <CheckCircle className="w-3.5 h-3.5 text-blue-400" />)}
+                {!isRealTime && checking ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                ) : (
+                  <CheckCircle className={`w-3.5 h-3.5 ${!isRealTime ? 'text-blue-300' : 'text-blue-400'}`} />
+                )}
                 {ui.askTeacher}
               </button>
               <button 
@@ -950,7 +1091,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
             className="fixed top-[42%] -translate-y-1/2 z-30 bg-blue-600 text-zinc-100 border border-zinc-700 border-r-0 rounded-l-xl px-2 py-4 shadow-xl transition-[right] duration-300"
             style={{ right: isObjectiveDrawerOpen ? 'min(92vw, 560px)' : '0px' }}
           >
-            <span className="block text-[10px] uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">{ui.target}</span>
+            <span className="block text-[10px] uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">3. {targetPanelTitle}</span>
           </button>
           <div className={`fixed top-14 right-0 bottom-0 w-[min(92vw,560px)] bg-white border-l border-zinc-300 shadow-2xl z-30 transition-transform duration-300 ${isObjectiveDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
             {targetPreviewColumn}
@@ -969,7 +1110,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
             className="fixed top-[58%] -translate-y-1/2 z-30 bg-blue-600 text-zinc-100 border border-zinc-700 border-r-0 rounded-l-xl px-2 py-4 shadow-xl transition-[right] duration-300"
             style={{ right: isLiveDrawerOpen ? 'min(92vw, 560px)' : '0px' }}
           >
-            <span className="block text-[10px] uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">{ui.liveResult}</span>
+            <span className="block text-[10px] uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">2. {livePanelTitle}</span>
           </button>
           <div className={`fixed top-14 right-0 bottom-0 w-[min(92vw,560px)] bg-white border-l border-zinc-300 shadow-2xl z-30 transition-transform duration-300 ${isLiveDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
             {livePreviewColumn}
@@ -1165,22 +1306,22 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
 
       {isGuideOpen && activeGuideStep && (
         <>
-          {isGuideOverlayActive && <div className="fixed inset-0 z-40 bg-black/45" />}
+          {isGuideOverlayActive && <div className="fixed inset-0 z-40 bg-black/70" />}
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
             <div className="w-full max-w-md h-[400px] rounded-2xl border border-zinc-700 bg-zinc-900/95 p-5 shadow-2xl flex flex-col">
-            <h3 className="mt-2 text-xl font-semibold text-zinc-50 shrink-0">{activeGuideStep.title}</h3>
+            <h3 className="mt-2 text-2xl font-semibold text-zinc-50 shrink-0">{activeGuideStep.title}</h3>
             <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
               {(() => {
                 const { lead, rest } = splitGuideDescription(activeGuideStep.description);
                 return (
                   <div className="space-y-2">
-                    <p className="text-sm leading-relaxed font-semibold text-zinc-100">{lead}</p>
+                    <p className="text-xl leading-relaxed text-zinc-100">{lead}</p>
                     {rest && <p className="text-sm leading-relaxed text-zinc-300">{rest}</p>}
                   </div>
                 );
               })()}
             </div>
-            <div className="mt-5 flex items-center justify-between gap-2 shrink-0">
+            <div className="mt-5 flex items-center justify-start gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => goToGuideStep(guideStepIndex - 1)}
@@ -1216,7 +1357,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
                   onClick={finishGuide}
                   className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
                 >
-                  {guide.finish}
+                  {ui.dismissGuideCta || guide.finish}
                 </button>
               )}
             </div>

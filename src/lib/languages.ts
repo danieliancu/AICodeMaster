@@ -40,20 +40,20 @@ export function getLanguageInstruction(language: AiLanguage): string {
 export function getTargetPanelLabel(language: AiLanguage): string {
   switch (language) {
     case "ro":
-      return "Obiectiv";
+      return "Model";
     case "en":
-      return "Target";
+      return "Model";
     case "es":
-      return "Objetivo";
+      return "Modelo";
     case "fr":
-      return "Objectif";
+      return "Modele";
     case "de":
-      return "Ziel";
+      return "Modell";
     case "it":
-      return "Obiettivo";
+      return "Modello";
     case "pt":
-      return "Objetivo";
+      return "Modelo";
     default:
-      return "Obiectiv";
+      return "Model";
   }
 }

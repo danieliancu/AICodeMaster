@@ -32,6 +32,7 @@ CREATE TABLE users (
   email VARCHAR(190) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   preferred_ai_language VARCHAR(12) NOT NULL DEFAULT 'ro',
+  preferred_editor_theme ENUM('light', 'dark') NOT NULL DEFAULT 'light',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   last_login_at TIMESTAMP NULL DEFAULT NULL,

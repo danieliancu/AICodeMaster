@@ -16,6 +16,11 @@ type LessonRow = {
 };
 
 const FALLBACK_LESSON_SLUG = "basic-layout";
+type EditorTheme = "light" | "dark";
+
+function isEditorTheme(value: unknown): value is EditorTheme {
+  return value === "light" || value === "dark";
+}
 
 function isLessonProgress(value: unknown): value is LessonProgress {
   return value === "not_started" || value === "in_progress" || value === "completed";
@@ -151,10 +156,21 @@ export async function GET(req: Request) {
       lessons.find((l) => l.id === defaultLessonId) ??
       lessons[0];
 
+    let preferredEditorTheme: EditorTheme = "light";
+    if (authUser) {
+      const themeRows = await queryRows<{ preferred_editor_theme: string | null }>(
+        "SELECT preferred_editor_theme FROM users WHERE id = ? LIMIT 1",
+        [authUser.id],
+      );
+      const rawTheme = themeRows[0]?.preferred_editor_theme;
+      preferredEditorTheme = isEditorTheme(rawTheme) ? rawTheme : "light";
+    }
+
     return NextResponse.json({
       defaultLessonId,
       selectedLessonId: selectedLesson?.id ?? defaultLessonId,
       selectedAiLanguage,
+      preferredEditorTheme,
       aiLanguageOptions: AI_LANGUAGE_OPTIONS,
       lessons: lessons.map((lesson) => ({
         id: lesson.id,
@@ -182,6 +198,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const selectedLessonId = typeof body.selectedLessonId === "string" ? body.selectedLessonId : undefined;
     const selectedAiLanguage = isAiLanguage(body.selectedAiLanguage) ? body.selectedAiLanguage : undefined;
+    const preferredEditorTheme = isEditorTheme(body.preferredEditorTheme) ? body.preferredEditorTheme : undefined;
     const lessonProgressInput =
       typeof body.lessonProgress === "object" && body.lessonProgress !== null
         ? (body.lessonProgress as Record<string, unknown>)
@@ -189,6 +206,10 @@ export async function POST(req: Request) {
 
     if (selectedAiLanguage) {
       await dbPool.query("UPDATE users SET preferred_ai_language = ? WHERE id = ?", [selectedAiLanguage, authUser.id]);
+    }
+
+    if (preferredEditorTheme) {
+      await dbPool.query("UPDATE users SET preferred_editor_theme = ? WHERE id = ?", [preferredEditorTheme, authUser.id]);
     }
 
     const lessonRows = await queryRows<{ id: number; slug: string }>(
