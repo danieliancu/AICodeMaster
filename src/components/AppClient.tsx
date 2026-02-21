@@ -101,12 +101,6 @@ const getGuestEditorTheme = (): 'light' | 'dark' | null => {
 };
 
 type XrayCategory = 'container' | 'text' | 'media' | 'interactive';
-type XrayCssGroups = {
-  layout: Record<string, string>;
-  spacing: Record<string, string>;
-  typography: Record<string, string>;
-  visual: Record<string, string>;
-};
 type XrayNodeInfo = {
   tag: string;
   classSummary: string;
@@ -114,9 +108,8 @@ type XrayNodeInfo = {
   category: XrayCategory;
   pointerX?: number;
   pointerY?: number;
-  keyCss: Record<string, string>;
-  boxModel: Record<string, string>;
-  fullCss: XrayCssGroups;
+  snippetSelector: string;
+  sizeCss: Record<string, string>;
 };
 
 
@@ -345,13 +338,6 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   const [isEditorsLightMode, setIsEditorsLightMode] = useState(true);
   const [isXrayEnabled, setIsXrayEnabled] = useState(false);
   const [hoverXrayNode, setHoverXrayNode] = useState<XrayNodeInfo | null>(null);
-  const [selectedXrayNode, setSelectedXrayNode] = useState<XrayNodeInfo | null>(null);
-  const [isXrayDrawerOpen, setIsXrayDrawerOpen] = useState(false);
-  const [xrayHelpPopover, setXrayHelpPopover] = useState<{
-    key: 'boxModel' | 'layout' | 'spacing' | 'typography' | 'visual';
-    left: number;
-    top: number;
-  } | null>(null);
   const [uiOverrides, setUiOverrides] = useState<Record<string, string>>({});
   const [sessionStartTime] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -375,31 +361,16 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   const isGuideOverlayActive = isGuideOpen && !isBelow1200;
   const activeTechnologies = exercise?.technologies ?? [];
   const hasJavaScript = activeTechnologies.includes('javascript');
-  const xrayHelpTextByKey: Record<'boxModel' | 'layout' | 'spacing' | 'typography' | 'visual', string> = {
-    boxModel: ui.xrayHelpBoxModel || 'Box model: shows the element final size (content) plus padding, border, and margin.',
-    layout: ui.xrayHelpLayout || 'Layout: rules that control placement in the page (display, position, width/height, flex/grid, align, gap).',
-    spacing: ui.xrayHelpSpacing || 'Spacing: inner and outer distances (padding, margin), plus border and box-sizing.',
-    typography: ui.xrayHelpTypography || 'Typography: text rules (font-family, font-size, font-weight, line-height, letter-spacing, text-align, color).',
-    visual: ui.xrayHelpVisual || 'Visual: visual appearance (background, box-shadow, opacity, overflow, z-index).',
+  const xrayHoverHintByLanguage: Record<AiLanguage, string> = {
+    ro: 'Hover pentru a inspecta CSS de dimensiune/layout/culoare.',
+    en: 'Hover to inspect size/layout/color CSS.',
+    es: 'Pasa el cursor para inspeccionar CSS de tamano/diseno/color.',
+    fr: 'Survole pour inspecter le CSS de taille/mise en page/couleur.',
+    de: 'Hover, um CSS fuer Groesse/Layout/Farbe zu pruefen.',
+    it: 'Passa il cursore per ispezionare CSS di dimensione/layout/colore.',
+    pt: 'Passe o cursor para inspecionar CSS de tamanho/layout/cor.',
   };
-  const toggleXrayHelpPopover = (
-    event: React.MouseEvent<HTMLButtonElement>,
-    key: 'boxModel' | 'layout' | 'spacing' | 'typography' | 'visual',
-  ) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    setXrayHelpPopover((prev) => {
-      if (prev?.key === key) return null;
-      const popoverWidth = 360;
-      const estimatedHeight = 170;
-      const margin = 12;
-      const left = Math.min(Math.max(margin, rect.left), Math.max(margin, window.innerWidth - popoverWidth - margin));
-      let top = rect.bottom + 8;
-      if (top + estimatedHeight > window.innerHeight - margin) {
-        top = Math.max(margin, rect.top - estimatedHeight - 8);
-      }
-      return { key, left, top };
-    });
-  };
+  const xrayHoverHint = xrayHoverHintByLanguage[aiLanguage] || xrayHoverHintByLanguage.en;
 
   const resetLessonWorkspace = (technologies?: Technology[], textOverrides?: Record<string, string>) => {
     const sourceOverrides = textOverrides ?? uiOverrides;
@@ -541,8 +512,6 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
       setIsEditorsLightMode(nextEditorTheme === 'light');
       setIsXrayEnabled(nextXrayEnabled);
       setHoverXrayNode(null);
-      setSelectedXrayNode(null);
-      setIsXrayDrawerOpen(false);
 
       let nextOverrides: Record<string, string> = uiOverrides;
       try {
@@ -866,10 +835,6 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
       if (message.type === 'aicodemaster_xray_hover' && message.payload) {
         setHoverXrayNode(message.payload);
       }
-      if (message.type === 'aicodemaster_xray_select' && message.payload) {
-        setSelectedXrayNode(message.payload);
-        setIsXrayDrawerOpen(true);
-      }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
@@ -878,35 +843,14 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   useEffect(() => {
     if (isBelow1200) {
       setHoverXrayNode(null);
-      setSelectedXrayNode(null);
-      setIsXrayDrawerOpen(false);
     }
   }, [isBelow1200]);
 
   useEffect(() => {
     if (!isXrayEnabled) {
       setHoverXrayNode(null);
-      setSelectedXrayNode(null);
-      setIsXrayDrawerOpen(false);
-      setXrayHelpPopover(null);
     }
   }, [isXrayEnabled]);
-
-  useEffect(() => {
-    if (!isXrayDrawerOpen) {
-      setXrayHelpPopover(null);
-    }
-  }, [isXrayDrawerOpen]);
-
-  useEffect(() => {
-    const onKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') {
-        setIsXrayDrawerOpen(false);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
 
   const isXrayAvailable = !isBelow1200;
   const shouldInjectXray = isXrayEnabled && isXrayAvailable;
@@ -943,7 +887,6 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         interactive: '#ef4444'
       };
       const STYLE_ID = 'aicm-xray-style';
-      const SELECTED_ATTR = 'data-aicm-xray-selected';
 
       function shouldIgnore(el) {
         const tag = el.tagName.toLowerCase();
@@ -974,14 +917,26 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         return chunks.join(' > ');
       }
 
+      function formatSnippetSelector(el) {
+        const firstClass = el.className && typeof el.className === 'string'
+          ? el.className.trim().split(/\\s+/).filter(Boolean)[0]
+          : '';
+        const tag = el.tagName.toLowerCase();
+        return firstClass ? tag + '.' + firstClass : tag;
+      }
+
       function pickMap(style, props) {
         const out = {};
         props.forEach((prop) => {
-          const value = roundPxValues((style.getPropertyValue(prop) || '').trim());
+          const value = normalizeCssValue((style.getPropertyValue(prop) || '').trim());
           if (!shouldKeepCssProp(prop, value)) return;
           out[prop] = value;
         });
         return out;
+      }
+
+      function normalizeCssValue(value) {
+        return normalizeColorTokens(roundPxValues(value));
       }
 
       function roundPxValues(value) {
@@ -993,6 +948,36 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         });
       }
 
+      function normalizeColorTokens(value) {
+        return value.replace(/rgba?\\([^\\)]+\\)/gi, (token) => normalizeRgbColor(token));
+      }
+
+      function normalizeRgbColor(value) {
+        const match = value.match(/^rgba?\\(([^\\)]+)\\)$/i);
+        if (!match) return value.toLowerCase();
+        const parts = match[1].split(',').map((part) => part.trim());
+        if (parts.length < 3) return value.toLowerCase();
+
+        const r = Number(parts[0]);
+        const g = Number(parts[1]);
+        const b = Number(parts[2]);
+        if (![r, g, b].every((n) => Number.isFinite(n))) return value.toLowerCase();
+
+        const toHex = (n) => {
+          const clamped = Math.max(0, Math.min(255, Math.round(n)));
+          return clamped.toString(16).padStart(2, '0');
+        };
+
+        const rgbHex = ('#' + toHex(r) + toHex(g) + toHex(b)).toLowerCase();
+        const named = { '#ffffff': 'white', '#000000': 'black' };
+        const alpha = parts.length >= 4 ? Number(parts[3]) : 1;
+        if (!Number.isFinite(alpha) || alpha >= 1) {
+          return named[rgbHex] || rgbHex;
+        }
+        const alphaHex = toHex(alpha * 255);
+        return (rgbHex + alphaHex).toLowerCase();
+      }
+
       function isAllZeroNumbers(value) {
         const compact = value.replace(/\\s+/g, ' ').trim();
         return /^(0(?:\\.0+)?[a-z%]*)(\\s+0(?:\\.0+)?[a-z%]*)*$/.test(compact);
@@ -1002,15 +987,14 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         if (!value) return false;
         const normalized = value.toLowerCase();
         if (normalized === 'auto' || normalized === 'none' || normalized === 'normal') return false;
+        if (prop === 'background-color' && (normalized === 'white' || normalized === '#fff' || normalized === '#ffffff')) return false;
+        if (prop === 'box-sizing') return false;
+        if (prop === 'overflow' && normalized === 'visible') return false;
+        if (prop === 'position' && normalized === 'static') return false;
+        if (prop === 'flex-direction' && normalized === 'row') return false;
         if (isAllZeroNumbers(normalized)) return false;
         if (prop.startsWith('border') && /^0(?:\\.0+)?[a-z%]*\\s+none\\b/.test(normalized)) return false;
         return true;
-      }
-
-      function px(value) {
-        const n = parseFloat(value || '0');
-        if (!Number.isFinite(n)) return '0px';
-        return (Math.round(n / 5) * 5) + 'px';
       }
 
       function serializeElement(el, point) {
@@ -1018,22 +1002,9 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         const classSummary = el.className && typeof el.className === 'string'
           ? el.className.trim().split(/\\s+/).filter(Boolean).slice(0, 3).map((c) => '.' + c).join(' ')
           : '';
-        const keyCss = pickMap(style, ['display', 'position', 'width', 'height', 'gap', 'justify-content', 'align-items']);
-        const boxModelRaw = {
-          width: px(style.width),
-          height: px(style.height),
-          margin: [style.marginTop, style.marginRight, style.marginBottom, style.marginLeft].map(px).join(' '),
-          padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(px).join(' '),
-          border: roundPxValues(style.border || ''),
-        };
-        const boxModel = Object.fromEntries(
-          Object.entries(boxModelRaw).filter(([prop, value]) => shouldKeepCssProp(prop, String(value || '').trim()))
-        );
-        const fullCss = {
-          layout: pickMap(style, ['display', 'position', 'top', 'right', 'bottom', 'left', 'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height', 'flex-direction', 'justify-content', 'align-items', 'gap', 'grid-template-columns', 'grid-template-rows']),
-          spacing: pickMap(style, ['margin', 'padding', 'border', 'border-radius', 'box-sizing']),
-          typography: pickMap(style, ['font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing', 'text-align', 'text-transform', 'color']),
-          visual: pickMap(style, ['background-color', 'box-shadow', 'opacity', 'overflow', 'z-index']),
+        const sizeCss = {
+          ...pickMap(style, ['display', 'position', 'top', 'right', 'bottom', 'left', 'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height', 'flex-direction', 'justify-content', 'align-items', 'gap', 'grid-template-columns', 'grid-template-rows']),
+          ...pickMap(style, ['margin', 'padding', 'border', 'border-radius', 'box-sizing', 'overflow', 'background-color', 'color']),
         };
         return {
           tag: el.tagName.toLowerCase(),
@@ -1042,9 +1013,8 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
           category: getCategory(el),
           pointerX: point && typeof point.x === 'number' ? point.x : undefined,
           pointerY: point && typeof point.y === 'number' ? point.y : undefined,
-          keyCss,
-          boxModel,
-          fullCss
+          snippetSelector: formatSnippetSelector(el),
+          sizeCss
         };
       }
 
@@ -1059,7 +1029,6 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
           body[data-aicm-xray="on"] *[data-aicm-xray-kind="text"] { outline: 2px dashed \${XRAY_COLORS.text}; }
           body[data-aicm-xray="on"] *[data-aicm-xray-kind="media"] { outline: 2px dashed \${XRAY_COLORS.media}; }
           body[data-aicm-xray="on"] *[data-aicm-xray-kind="interactive"] { outline: 2px dashed \${XRAY_COLORS.interactive}; cursor: crosshair !important; }
-          body[data-aicm-xray="on"] *[\${SELECTED_ATTR}] { box-shadow: inset 0 0 0 2px #60a5fa; }
         \`;
         document.head.appendChild(style);
       }
@@ -1076,11 +1045,6 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         window.parent.postMessage({ type, payload }, '*');
       }
 
-      function clearSelection() {
-        const selected = document.querySelector('*[' + SELECTED_ATTR + ']');
-        if (selected) selected.removeAttribute(SELECTED_ATTR);
-      }
-
       applyStyles();
       decorateElements();
       document.body.setAttribute('data-aicm-xray', 'on');
@@ -1093,16 +1057,6 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         const el = ev.target instanceof HTMLElement ? ev.target : null;
         if (!el || shouldIgnore(el)) return;
         post('aicodemaster_xray_hover', serializeElement(el, { x: ev.clientX, y: ev.clientY }));
-      }, true);
-
-      document.addEventListener('click', (ev) => {
-        const el = ev.target instanceof HTMLElement ? ev.target : null;
-        if (!el || shouldIgnore(el)) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        clearSelection();
-        el.setAttribute(SELECTED_ATTR, '1');
-        post('aicodemaster_xray_select', serializeElement(el, { x: ev.clientX, y: ev.clientY }));
       }, true);
 
       const observer = new MutationObserver(() => {
@@ -1269,86 +1223,6 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
           srcDoc={srcDoc}
           className="w-full h-full border-none"
         />
-        {shouldInjectXray && isXrayDrawerOpen && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-zinc-950/80">
-            <div className="h-[94%] w-[94%] border border-zinc-700 bg-zinc-950 p-3 text-zinc-100 shadow-2xl">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-widest text-blue-300">{ui.xrayDrawerTitle || 'X-Ray CSS Inspector'}</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsXrayDrawerOpen(false);
-                    setXrayHelpPopover(null);
-                  }}
-                  className="rounded-md p-1 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
-                  aria-label={ui.close}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              {!selectedXrayNode ? (
-                <p className="text-xs text-zinc-400">{ui.xrayEmptyState || 'Select an element in the Model panel to inspect CSS.'}</p>
-              ) : (
-                <div className="space-y-3 overflow-auto pr-1 text-xs h-[calc(100%-2rem)]">
-                  <div className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
-                    <p className="font-semibold text-blue-300">{selectedXrayNode.tag}{selectedXrayNode.classSummary ? ` ${selectedXrayNode.classSummary}` : ''}</p>
-                    <p className="mt-1 break-words text-zinc-300">{selectedXrayNode.selectorPath}</p>
-                  </div>
-                  <div className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[18px] font-semibold text-emerald-300">Box model</p>
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={(event) => toggleXrayHelpPopover(event, 'boxModel')}
-                          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-[14px] font-bold leading-none text-zinc-900"
-                          aria-label={ui.xrayHelpIconLabel || 'Help'}
-                        >
-                          ?
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-1 space-y-1 text-zinc-300">
-                      {Object.entries(selectedXrayNode.boxModel).map(([key, value]) => (
-                        <p key={key}><span className="text-zinc-400">{key}</span>: {value}</p>
-                      ))}
-                    </div>
-                  </div>
-                  {Object.entries(selectedXrayNode.fullCss).filter(([, entries]) => Object.keys(entries).length > 0).map(([group, entries]) => (
-                    <div key={group} className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
-                      <div className="flex items-center gap-2">
-                        <p className="text-[18px] font-semibold capitalize text-amber-300">{group}</p>
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={(event) => toggleXrayHelpPopover(event, group as 'layout' | 'spacing' | 'typography' | 'visual')}
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-[14px] font-bold leading-none text-zinc-900"
-                            aria-label={ui.xrayHelpIconLabel || 'Help'}
-                          >
-                            ?
-                          </button>
-                        </div>
-                      </div>
-                      <div className="mt-1 space-y-1 text-zinc-300">
-                        {Object.entries(entries).map(([prop, value]) => (
-                          <p key={prop}><span className="text-zinc-400">{prop}</span>: {value}</p>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {xrayHelpPopover && (
-              <div
-                className="fixed z-[80] w-[360px] rounded-md border border-zinc-600 bg-zinc-950 p-3 text-[18px] leading-snug text-zinc-200 shadow-2xl"
-                style={{ left: `${xrayHelpPopover.left}px`, top: `${xrayHelpPopover.top}px` }}
-              >
-                {xrayHelpTextByKey[xrayHelpPopover.key]}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1403,28 +1277,25 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         />
         {shouldInjectXray && hoverXrayNode && (
           <div
-            className="pointer-events-none absolute z-20 w-[320px] rounded-md border border-blue-900 bg-[#0b1220] px-3 py-2 font-mono text-[12px] leading-6 text-slate-100 shadow-2xl"
+            className="pointer-events-none absolute z-20 w-[420px] rounded-md border border-blue-900 bg-[#0b1220] px-3 py-2 font-mono text-[12px] leading-6 text-slate-100 shadow-2xl"
             style={{
-              left: `${Math.max(10, Math.min((hoverXrayNode.pointerX ?? 10) + 12, Math.max(10, viewportWidth - 420)))}px`,
+              left: `${Math.max(10, Math.min((hoverXrayNode.pointerX ?? 10) + 12, Math.max(10, viewportWidth - 520)))}px`,
               top: `${Math.max(10, Math.min((hoverXrayNode.pointerY ?? 10) + 10, 420))}px`,
             }}
           >
-            <p className="font-semibold text-blue-300">
-              {hoverXrayNode.tag}{hoverXrayNode.classSummary ? ` ${hoverXrayNode.classSummary}` : ''}
-            </p>
             <p className="truncate text-slate-300">{hoverXrayNode.selectorPath}</p>
-            <p className="text-slate-400">{'{'}</p>
-            {(['display', 'position', 'width'] as const).map((prop) => (
+            <p className="mt-1 text-slate-400">{hoverXrayNode.snippetSelector} {'{'}</p>
+            {Object.entries(hoverXrayNode.sizeCss).map(([prop, value]) => (
               <p key={prop} className="text-slate-300">
-                {prop}: {hoverXrayNode.keyCss[prop] || '-'};
+                {prop}: {value};
               </p>
             ))}
             <p className="text-slate-400">{'}'}</p>
           </div>
         )}
-        {shouldInjectXray && !selectedXrayNode && (
+        {shouldInjectXray && (
           <div className="pointer-events-none absolute bottom-3 left-3 z-20 rounded-md border border-zinc-700 bg-zinc-900/90 px-2 py-1 text-[18px] text-zinc-300">
-            {ui.xrayHelpHint || 'Hover to inspect. Click an element to open full CSS.'}
+            {xrayHoverHint}
           </div>
         )}
       </div>
