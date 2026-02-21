@@ -112,6 +112,8 @@ type XrayNodeInfo = {
   classSummary: string;
   selectorPath: string;
   category: XrayCategory;
+  pointerX?: number;
+  pointerY?: number;
   keyCss: Record<string, string>;
   boxModel: Record<string, string>;
   fullCss: XrayCssGroups;
@@ -188,6 +190,12 @@ type UiText = {
   xrayEmptyState: string;
   xrayDesktopOnlyHint: string;
   xrayHelpHint: string;
+  xrayHelpIconLabel: string;
+  xrayHelpBoxModel: string;
+  xrayHelpLayout: string;
+  xrayHelpSpacing: string;
+  xrayHelpTypography: string;
+  xrayHelpVisual: string;
 };
 
 const EMPTY_UI_TEXT: UiText = {
@@ -260,6 +268,12 @@ const EMPTY_UI_TEXT: UiText = {
   xrayEmptyState: '',
   xrayDesktopOnlyHint: '',
   xrayHelpHint: '',
+  xrayHelpIconLabel: '',
+  xrayHelpBoxModel: '',
+  xrayHelpLayout: '',
+  xrayHelpSpacing: '',
+  xrayHelpTypography: '',
+  xrayHelpVisual: '',
 };
 
 const DEFAULT_DB_GUIDE: GuideLanguageContent = {
@@ -333,6 +347,11 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   const [hoverXrayNode, setHoverXrayNode] = useState<XrayNodeInfo | null>(null);
   const [selectedXrayNode, setSelectedXrayNode] = useState<XrayNodeInfo | null>(null);
   const [isXrayDrawerOpen, setIsXrayDrawerOpen] = useState(false);
+  const [xrayHelpPopover, setXrayHelpPopover] = useState<{
+    key: 'boxModel' | 'layout' | 'spacing' | 'typography' | 'visual';
+    left: number;
+    top: number;
+  } | null>(null);
   const [uiOverrides, setUiOverrides] = useState<Record<string, string>>({});
   const [sessionStartTime] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -356,6 +375,31 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   const isGuideOverlayActive = isGuideOpen && !isBelow1200;
   const activeTechnologies = exercise?.technologies ?? [];
   const hasJavaScript = activeTechnologies.includes('javascript');
+  const xrayHelpTextByKey: Record<'boxModel' | 'layout' | 'spacing' | 'typography' | 'visual', string> = {
+    boxModel: ui.xrayHelpBoxModel || 'Box model: shows the element final size (content) plus padding, border, and margin.',
+    layout: ui.xrayHelpLayout || 'Layout: rules that control placement in the page (display, position, width/height, flex/grid, align, gap).',
+    spacing: ui.xrayHelpSpacing || 'Spacing: inner and outer distances (padding, margin), plus border and box-sizing.',
+    typography: ui.xrayHelpTypography || 'Typography: text rules (font-family, font-size, font-weight, line-height, letter-spacing, text-align, color).',
+    visual: ui.xrayHelpVisual || 'Visual: visual appearance (background, box-shadow, opacity, overflow, z-index).',
+  };
+  const toggleXrayHelpPopover = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    key: 'boxModel' | 'layout' | 'spacing' | 'typography' | 'visual',
+  ) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setXrayHelpPopover((prev) => {
+      if (prev?.key === key) return null;
+      const popoverWidth = 360;
+      const estimatedHeight = 170;
+      const margin = 12;
+      const left = Math.min(Math.max(margin, rect.left), Math.max(margin, window.innerWidth - popoverWidth - margin));
+      let top = rect.bottom + 8;
+      if (top + estimatedHeight > window.innerHeight - margin) {
+        top = Math.max(margin, rect.top - estimatedHeight - 8);
+      }
+      return { key, left, top };
+    });
+  };
 
   const resetLessonWorkspace = (technologies?: Technology[], textOverrides?: Record<string, string>) => {
     const sourceOverrides = textOverrides ?? uiOverrides;
@@ -844,8 +888,15 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
       setHoverXrayNode(null);
       setSelectedXrayNode(null);
       setIsXrayDrawerOpen(false);
+      setXrayHelpPopover(null);
     }
   }, [isXrayEnabled]);
+
+  useEffect(() => {
+    if (!isXrayDrawerOpen) {
+      setXrayHelpPopover(null);
+    }
+  }, [isXrayDrawerOpen]);
 
   useEffect(() => {
     const onKeyDown = (ev: KeyboardEvent) => {
@@ -859,6 +910,30 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
 
   const isXrayAvailable = !isBelow1200;
   const shouldInjectXray = isXrayEnabled && isXrayAvailable;
+  const anchorGuardScript = `
+    (function () {
+      function isAnchorTarget(node) {
+        return node instanceof Element ? node.closest('a[href]') : null;
+      }
+
+      function preventAnchorNavigation(event) {
+        const anchor = isAnchorTarget(event.target);
+        if (!anchor) return;
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
+      document.addEventListener('click', preventAnchorNavigation, true);
+      document.addEventListener('auxclick', preventAnchorNavigation, true);
+      document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const anchor = isAnchorTarget(event.target);
+        if (!anchor) return;
+        event.preventDefault();
+        event.stopPropagation();
+      }, true);
+    })();
+  `;
   const xrayScript = `
     (function () {
       const XRAY_COLORS = {
@@ -910,7 +985,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         return Number.isFinite(n) ? n.toFixed(1) + 'px' : '0px';
       }
 
-      function serializeElement(el) {
+      function serializeElement(el, point) {
         const style = getComputedStyle(el);
         const classSummary = el.className && typeof el.className === 'string'
           ? el.className.trim().split(/\\s+/).filter(Boolean).slice(0, 3).map((c) => '.' + c).join(' ')
@@ -934,6 +1009,8 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
           classSummary,
           selectorPath: formatPath(el),
           category: getCategory(el),
+          pointerX: point && typeof point.x === 'number' ? point.x : undefined,
+          pointerY: point && typeof point.y === 'number' ? point.y : undefined,
           keyCss,
           boxModel,
           fullCss
@@ -946,11 +1023,11 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         const style = document.createElement('style');
         style.id = STYLE_ID;
         style.textContent = \`
-          body[data-aicm-xray="on"] *[data-aicm-xray-kind] { outline-offset: -1px; }
-          body[data-aicm-xray="on"] *[data-aicm-xray-kind="container"] { outline: 1px dashed \${XRAY_COLORS.container}; }
-          body[data-aicm-xray="on"] *[data-aicm-xray-kind="text"] { outline: 1px dashed \${XRAY_COLORS.text}; }
-          body[data-aicm-xray="on"] *[data-aicm-xray-kind="media"] { outline: 1px dashed \${XRAY_COLORS.media}; }
-          body[data-aicm-xray="on"] *[data-aicm-xray-kind="interactive"] { outline: 1px dashed \${XRAY_COLORS.interactive}; cursor: crosshair !important; }
+          body[data-aicm-xray="on"] *[data-aicm-xray-kind] { outline-offset: -2px; }
+          body[data-aicm-xray="on"] *[data-aicm-xray-kind="container"] { outline: 2px dashed \${XRAY_COLORS.container}; }
+          body[data-aicm-xray="on"] *[data-aicm-xray-kind="text"] { outline: 2px dashed \${XRAY_COLORS.text}; }
+          body[data-aicm-xray="on"] *[data-aicm-xray-kind="media"] { outline: 2px dashed \${XRAY_COLORS.media}; }
+          body[data-aicm-xray="on"] *[data-aicm-xray-kind="interactive"] { outline: 2px dashed \${XRAY_COLORS.interactive}; cursor: crosshair !important; }
           body[data-aicm-xray="on"] *[\${SELECTED_ATTR}] { box-shadow: inset 0 0 0 2px #60a5fa; }
         \`;
         document.head.appendChild(style);
@@ -984,7 +1061,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         lastHoverAt = now;
         const el = ev.target instanceof HTMLElement ? ev.target : null;
         if (!el || shouldIgnore(el)) return;
-        post('aicodemaster_xray_hover', serializeElement(el));
+        post('aicodemaster_xray_hover', serializeElement(el, { x: ev.clientX, y: ev.clientY }));
       }, true);
 
       document.addEventListener('click', (ev) => {
@@ -994,7 +1071,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         ev.stopPropagation();
         clearSelection();
         el.setAttribute(SELECTED_ATTR, '1');
-        post('aicodemaster_xray_select', serializeElement(el));
+        post('aicodemaster_xray_select', serializeElement(el, { x: ev.clientX, y: ev.clientY }));
       }, true);
 
       const observer = new MutationObserver(() => {
@@ -1008,6 +1085,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
     <html>
       <style>${css}</style>
       <body>${html}</body>
+      <script>${anchorGuardScript}</script>
       ${hasJavaScript ? `<script>${js}</script>` : ''}
     </html>
   `;
@@ -1016,6 +1094,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
     <html>
       <style>${exercise.targetCss}</style>
       <body>${exercise.targetHtml}</body>
+      <script>${anchorGuardScript}</script>
       ${hasJavaScript ? `<script>${exercise.targetJs}</script>` : ''}
       ${shouldInjectXray ? `<script>${xrayScript}</script>` : ''}
     </html>
@@ -1153,12 +1232,92 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
         </div>
         <p className="mt-0.5 text-[11px] text-zinc-300">{livePanelHint}</p>
       </div>
-      <div className="flex-1">
+      <div className="relative flex-1">
         <iframe
           title="user-preview"
           srcDoc={srcDoc}
           className="w-full h-full border-none"
         />
+        {shouldInjectXray && isXrayDrawerOpen && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-zinc-950/80">
+            <div className="h-[94%] w-[94%] border border-zinc-700 bg-zinc-950 p-3 text-zinc-100 shadow-2xl">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-widest text-blue-300">{ui.xrayDrawerTitle || 'X-Ray CSS Inspector'}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsXrayDrawerOpen(false);
+                    setXrayHelpPopover(null);
+                  }}
+                  className="rounded-md p-1 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+                  aria-label={ui.close}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              {!selectedXrayNode ? (
+                <p className="text-xs text-zinc-400">{ui.xrayEmptyState || 'Select an element in the Model panel to inspect CSS.'}</p>
+              ) : (
+                <div className="space-y-3 overflow-auto pr-1 text-xs h-[calc(100%-2rem)]">
+                  <div className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
+                    <p className="font-semibold text-blue-300">{selectedXrayNode.tag}{selectedXrayNode.classSummary ? ` ${selectedXrayNode.classSummary}` : ''}</p>
+                    <p className="mt-1 break-words text-zinc-300">{selectedXrayNode.selectorPath}</p>
+                  </div>
+                  <div className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[18px] font-semibold text-emerald-300">Box model</p>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={(event) => toggleXrayHelpPopover(event, 'boxModel')}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-[14px] font-bold leading-none text-zinc-900"
+                          aria-label={ui.xrayHelpIconLabel || 'Help'}
+                        >
+                          ?
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-1 space-y-1 text-zinc-300">
+                      {Object.entries(selectedXrayNode.boxModel).map(([key, value]) => (
+                        <p key={key}><span className="text-zinc-400">{key}</span>: {value}</p>
+                      ))}
+                    </div>
+                  </div>
+                  {Object.entries(selectedXrayNode.fullCss).map(([group, entries]) => (
+                    <div key={group} className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[18px] font-semibold capitalize text-amber-300">{group}</p>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(event) => toggleXrayHelpPopover(event, group as 'layout' | 'spacing' | 'typography' | 'visual')}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-[14px] font-bold leading-none text-zinc-900"
+                            aria-label={ui.xrayHelpIconLabel || 'Help'}
+                          >
+                            ?
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-1 space-y-1 text-zinc-300">
+                        {Object.entries(entries).map(([prop, value]) => (
+                          <p key={prop}><span className="text-zinc-400">{prop}</span>: {value || '-'}</p>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {xrayHelpPopover && (
+              <div
+                className="fixed z-[80] w-[360px] rounded-md border border-zinc-600 bg-zinc-950 p-3 text-[18px] leading-snug text-zinc-200 shadow-2xl"
+                style={{ left: `${xrayHelpPopover.left}px`, top: `${xrayHelpPopover.top}px` }}
+              >
+                {xrayHelpTextByKey[xrayHelpPopover.key]}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1212,65 +1371,29 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
           className="w-full h-full border-none"
         />
         {shouldInjectXray && hoverXrayNode && (
-          <div className="pointer-events-none absolute left-3 top-3 z-20 max-w-[55%] rounded-md border border-zinc-700 bg-zinc-900/95 px-2 py-1 text-[10px] text-zinc-100 shadow-xl">
+          <div
+            className="pointer-events-none absolute z-20 w-[320px] rounded-md border border-blue-900 bg-[#0b1220] px-3 py-2 font-mono text-[12px] leading-6 text-slate-100 shadow-2xl"
+            style={{
+              left: `${Math.max(10, Math.min((hoverXrayNode.pointerX ?? 10) + 12, Math.max(10, viewportWidth - 420)))}px`,
+              top: `${Math.max(10, Math.min((hoverXrayNode.pointerY ?? 10) + 10, 420))}px`,
+            }}
+          >
             <p className="font-semibold text-blue-300">
               {hoverXrayNode.tag}{hoverXrayNode.classSummary ? ` ${hoverXrayNode.classSummary}` : ''}
             </p>
-            <p className="truncate text-zinc-300">{hoverXrayNode.selectorPath}</p>
-            <p className="text-zinc-400">
-              {Object.entries(hoverXrayNode.keyCss)
-                .slice(0, 3)
-                .map(([k, v]) => `${k}: ${v}`)
-                .join(' | ')}
-            </p>
+            <p className="truncate text-slate-300">{hoverXrayNode.selectorPath}</p>
+            <p className="text-slate-400">{'{'}</p>
+            {(['display', 'position', 'width'] as const).map((prop) => (
+              <p key={prop} className="text-slate-300">
+                {prop}: {hoverXrayNode.keyCss[prop] || '-'};
+              </p>
+            ))}
+            <p className="text-slate-400">{'}'}</p>
           </div>
         )}
         {shouldInjectXray && !selectedXrayNode && (
-          <div className="pointer-events-none absolute bottom-3 left-3 z-20 rounded-md border border-zinc-700 bg-zinc-900/90 px-2 py-1 text-[10px] text-zinc-300">
+          <div className="pointer-events-none absolute bottom-3 left-3 z-20 rounded-md border border-zinc-700 bg-zinc-900/90 px-2 py-1 text-[18px] text-zinc-300">
             {ui.xrayHelpHint || 'Hover to inspect. Click an element to open full CSS.'}
-          </div>
-        )}
-        {shouldInjectXray && isXrayDrawerOpen && (
-          <div className="absolute right-0 top-0 bottom-0 z-30 w-[min(94%,360px)] border-l border-zinc-700 bg-zinc-950/98 p-3 text-zinc-100 shadow-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-widest text-blue-300">{ui.xrayDrawerTitle || 'X-Ray CSS Inspector'}</p>
-              <button
-                type="button"
-                onClick={() => setIsXrayDrawerOpen(false)}
-                className="rounded-md p-1 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
-                aria-label={ui.close}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            {!selectedXrayNode ? (
-              <p className="text-xs text-zinc-400">{ui.xrayEmptyState || 'Select an element in the Model panel to inspect CSS.'}</p>
-            ) : (
-              <div className="space-y-3 overflow-auto pr-1 text-xs h-[calc(100%-2rem)]">
-                <div className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
-                  <p className="font-semibold text-blue-300">{selectedXrayNode.tag}{selectedXrayNode.classSummary ? ` ${selectedXrayNode.classSummary}` : ''}</p>
-                  <p className="mt-1 break-words text-zinc-300">{selectedXrayNode.selectorPath}</p>
-                </div>
-                <div className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
-                  <p className="font-semibold text-emerald-300">Box model</p>
-                  <div className="mt-1 space-y-1 text-zinc-300">
-                    {Object.entries(selectedXrayNode.boxModel).map(([key, value]) => (
-                      <p key={key}><span className="text-zinc-400">{key}</span>: {value}</p>
-                    ))}
-                  </div>
-                </div>
-                {Object.entries(selectedXrayNode.fullCss).map(([group, entries]) => (
-                  <div key={group} className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
-                    <p className="font-semibold capitalize text-amber-300">{group}</p>
-                    <div className="mt-1 space-y-1 text-zinc-300">
-                      {Object.entries(entries).map(([prop, value]) => (
-                        <p key={prop}><span className="text-zinc-400">{prop}</span>: {value || '-'}</p>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
       </div>
