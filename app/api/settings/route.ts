@@ -17,9 +17,14 @@ type LessonRow = {
 
 const FALLBACK_LESSON_SLUG = "basic-layout";
 type EditorTheme = "light" | "dark";
+type BoolLike = 0 | 1;
 
 function isEditorTheme(value: unknown): value is EditorTheme {
   return value === "light" || value === "dark";
+}
+
+function toBoolLike(value: unknown): BoolLike {
+  return value === 1 || value === "1" || value === true ? 1 : 0;
 }
 
 function isLessonProgress(value: unknown): value is LessonProgress {
@@ -157,13 +162,15 @@ export async function GET(req: Request) {
       lessons[0];
 
     let preferredEditorTheme: EditorTheme = "light";
+    let preferredXrayEnabled = false;
     if (authUser) {
-      const themeRows = await queryRows<{ preferred_editor_theme: string | null }>(
-        "SELECT preferred_editor_theme FROM users WHERE id = ? LIMIT 1",
+      const prefRows = await queryRows<{ preferred_editor_theme: string | null; preferred_xray_enabled: number | null }>(
+        "SELECT preferred_editor_theme, preferred_xray_enabled FROM users WHERE id = ? LIMIT 1",
         [authUser.id],
       );
-      const rawTheme = themeRows[0]?.preferred_editor_theme;
+      const rawTheme = prefRows[0]?.preferred_editor_theme;
       preferredEditorTheme = isEditorTheme(rawTheme) ? rawTheme : "light";
+      preferredXrayEnabled = toBoolLike(prefRows[0]?.preferred_xray_enabled) === 1;
     }
 
     return NextResponse.json({
@@ -171,6 +178,7 @@ export async function GET(req: Request) {
       selectedLessonId: selectedLesson?.id ?? defaultLessonId,
       selectedAiLanguage,
       preferredEditorTheme,
+      preferredXrayEnabled,
       aiLanguageOptions: AI_LANGUAGE_OPTIONS,
       lessons: lessons.map((lesson) => ({
         id: lesson.id,
@@ -199,6 +207,8 @@ export async function POST(req: Request) {
     const selectedLessonId = typeof body.selectedLessonId === "string" ? body.selectedLessonId : undefined;
     const selectedAiLanguage = isAiLanguage(body.selectedAiLanguage) ? body.selectedAiLanguage : undefined;
     const preferredEditorTheme = isEditorTheme(body.preferredEditorTheme) ? body.preferredEditorTheme : undefined;
+    const preferredXrayEnabled =
+      body.preferredXrayEnabled === undefined ? undefined : toBoolLike(body.preferredXrayEnabled);
     const lessonProgressInput =
       typeof body.lessonProgress === "object" && body.lessonProgress !== null
         ? (body.lessonProgress as Record<string, unknown>)
@@ -210,6 +220,10 @@ export async function POST(req: Request) {
 
     if (preferredEditorTheme) {
       await dbPool.query("UPDATE users SET preferred_editor_theme = ? WHERE id = ?", [preferredEditorTheme, authUser.id]);
+    }
+
+    if (preferredXrayEnabled !== undefined) {
+      await dbPool.query("UPDATE users SET preferred_xray_enabled = ? WHERE id = ?", [preferredXrayEnabled, authUser.id]);
     }
 
     const lessonRows = await queryRows<{ id: number; slug: string }>(

@@ -6,7 +6,7 @@ import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-markup';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-javascript';
-import { CheckCircle, MessageSquare, Settings, User, Loader2, Send, X, Minimize2, Maximize2, Menu, CircleHelp, Mouse, Rocket, Activity, UserRound, LogIn, UserPlus, Lock, ArrowUpDown, Sun, Moon } from 'lucide-react';
+import { CheckCircle, MessageSquare, Settings, User, Loader2, Send, X, Minimize2, Maximize2, Menu, CircleHelp, Mouse, Rocket, Activity, UserRound, LogIn, UserPlus, Lock, ArrowUpDown, Sun, Moon, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import ReactMarkdown from 'react-markdown';
@@ -19,6 +19,7 @@ type SettingsResponse = {
   selectedLessonId: string;
   selectedAiLanguage: AiLanguage;
   preferredEditorTheme?: 'light' | 'dark';
+  preferredXrayEnabled?: boolean;
   aiLanguageOptions: { code: AiLanguage; label: string }[];
   lessons: {
     id: string;
@@ -99,6 +100,23 @@ const getGuestEditorTheme = (): 'light' | 'dark' | null => {
   return value === 'dark' || value === 'light' ? value : null;
 };
 
+type XrayCategory = 'container' | 'text' | 'media' | 'interactive';
+type XrayCssGroups = {
+  layout: Record<string, string>;
+  spacing: Record<string, string>;
+  typography: Record<string, string>;
+  visual: Record<string, string>;
+};
+type XrayNodeInfo = {
+  tag: string;
+  classSummary: string;
+  selectorPath: string;
+  category: XrayCategory;
+  keyCss: Record<string, string>;
+  boxModel: Record<string, string>;
+  fullCss: XrayCssGroups;
+};
+
 
 type UiText = {
   newLesson: string;
@@ -163,6 +181,13 @@ type UiText = {
   panelTargetHint: string;
   startGuideCta: string;
   dismissGuideCta: string;
+  xrayModeLabel: string;
+  xrayModeOn: string;
+  xrayModeOff: string;
+  xrayDrawerTitle: string;
+  xrayEmptyState: string;
+  xrayDesktopOnlyHint: string;
+  xrayHelpHint: string;
 };
 
 const EMPTY_UI_TEXT: UiText = {
@@ -228,6 +253,13 @@ const EMPTY_UI_TEXT: UiText = {
   panelTargetHint: '',
   startGuideCta: '',
   dismissGuideCta: '',
+  xrayModeLabel: '',
+  xrayModeOn: '',
+  xrayModeOff: '',
+  xrayDrawerTitle: '',
+  xrayEmptyState: '',
+  xrayDesktopOnlyHint: '',
+  xrayHelpHint: '',
 };
 
 const DEFAULT_DB_GUIDE: GuideLanguageContent = {
@@ -297,6 +329,10 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   const [guideStepIndex, setGuideStepIndex] = useState(0);
   const [workspaceLoaded, setWorkspaceLoaded] = useState(false);
   const [isEditorsLightMode, setIsEditorsLightMode] = useState(true);
+  const [isXrayEnabled, setIsXrayEnabled] = useState(false);
+  const [hoverXrayNode, setHoverXrayNode] = useState<XrayNodeInfo | null>(null);
+  const [selectedXrayNode, setSelectedXrayNode] = useState<XrayNodeInfo | null>(null);
+  const [isXrayDrawerOpen, setIsXrayDrawerOpen] = useState(false);
   const [uiOverrides, setUiOverrides] = useState<Record<string, string>>({});
   const [sessionStartTime] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -313,6 +349,8 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatWasOpenBeforeGuideRef = useRef(false);
   const lastSyncedEditorThemeRef = useRef<'light' | 'dark' | null>(null);
+  const lastSyncedXrayRef = useRef<boolean | null>(null);
+  const targetFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   const activeGuideStep = guideSteps[guideStepIndex];
   const isGuideOverlayActive = isGuideOpen && !isBelow1200;
@@ -451,8 +489,16 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
       const nextEditorTheme = token
         ? (data.preferredEditorTheme === 'dark' ? 'dark' : 'light')
         : (getGuestEditorTheme() ?? 'light');
+      const nextXrayEnabled = token
+        ? Boolean(data.preferredXrayEnabled)
+        : false;
       lastSyncedEditorThemeRef.current = null;
+      lastSyncedXrayRef.current = null;
       setIsEditorsLightMode(nextEditorTheme === 'light');
+      setIsXrayEnabled(nextXrayEnabled);
+      setHoverXrayNode(null);
+      setSelectedXrayNode(null);
+      setIsXrayDrawerOpen(false);
 
       let nextOverrides: Record<string, string> = uiOverrides;
       try {
@@ -746,6 +792,217 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
     }).catch(() => {});
   }, [workspaceLoaded, isEditorsLightMode]);
 
+  useEffect(() => {
+    if (!workspaceLoaded) return;
+    const token = getAuthToken();
+    if (!token) return;
+    if (lastSyncedXrayRef.current === null) {
+      lastSyncedXrayRef.current = isXrayEnabled;
+      return;
+    }
+    if (lastSyncedXrayRef.current === isXrayEnabled) return;
+
+    lastSyncedXrayRef.current = isXrayEnabled;
+    void fetch('/api/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ preferredXrayEnabled: isXrayEnabled }),
+    }).catch(() => {});
+  }, [workspaceLoaded, isXrayEnabled]);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (!targetFrameRef.current || event.source !== targetFrameRef.current.contentWindow) return;
+      if (!event.data || typeof event.data !== 'object') return;
+      const message = event.data as { type?: string; payload?: XrayNodeInfo };
+      if (message.type === 'aicodemaster_xray_hover' && message.payload) {
+        setHoverXrayNode(message.payload);
+      }
+      if (message.type === 'aicodemaster_xray_select' && message.payload) {
+        setSelectedXrayNode(message.payload);
+        setIsXrayDrawerOpen(true);
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  useEffect(() => {
+    if (isBelow1200) {
+      setHoverXrayNode(null);
+      setSelectedXrayNode(null);
+      setIsXrayDrawerOpen(false);
+    }
+  }, [isBelow1200]);
+
+  useEffect(() => {
+    if (!isXrayEnabled) {
+      setHoverXrayNode(null);
+      setSelectedXrayNode(null);
+      setIsXrayDrawerOpen(false);
+    }
+  }, [isXrayEnabled]);
+
+  useEffect(() => {
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') {
+        setIsXrayDrawerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const isXrayAvailable = !isBelow1200;
+  const shouldInjectXray = isXrayEnabled && isXrayAvailable;
+  const xrayScript = `
+    (function () {
+      const XRAY_COLORS = {
+        container: '#38bdf8',
+        text: '#f59e0b',
+        media: '#22c55e',
+        interactive: '#ef4444'
+      };
+      const STYLE_ID = 'aicm-xray-style';
+      const SELECTED_ATTR = 'data-aicm-xray-selected';
+
+      function shouldIgnore(el) {
+        const tag = el.tagName.toLowerCase();
+        return ['html', 'head', 'body', 'script', 'style', 'meta', 'link'].includes(tag);
+      }
+
+      function getCategory(el) {
+        const tag = el.tagName.toLowerCase();
+        if (['button', 'input', 'select', 'textarea', 'label', 'summary', 'details'].includes(tag) || el.hasAttribute('onclick') || el.getAttribute('role') === 'button') return 'interactive';
+        if (['img', 'svg', 'video', 'canvas', 'picture', 'figure', 'iframe'].includes(tag)) return 'media';
+        if (['p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'li', 'small', 'strong', 'em', 'label'].includes(tag)) return 'text';
+        return 'container';
+      }
+
+      function formatPath(el) {
+        const chunks = [];
+        let node = el;
+        let depth = 0;
+        while (node && depth < 6 && node.tagName) {
+          const tag = node.tagName.toLowerCase();
+          const cls = node.className && typeof node.className === 'string'
+            ? '.' + node.className.trim().split(/\\s+/).filter(Boolean).slice(0, 1).join('.')
+            : '';
+          chunks.unshift(tag + cls);
+          node = node.parentElement;
+          depth += 1;
+        }
+        return chunks.join(' > ');
+      }
+
+      function pickMap(style, props) {
+        const out = {};
+        props.forEach((prop) => { out[prop] = style.getPropertyValue(prop) || ''; });
+        return out;
+      }
+
+      function px(value) {
+        const n = parseFloat(value || '0');
+        return Number.isFinite(n) ? n.toFixed(1) + 'px' : '0px';
+      }
+
+      function serializeElement(el) {
+        const style = getComputedStyle(el);
+        const classSummary = el.className && typeof el.className === 'string'
+          ? el.className.trim().split(/\\s+/).filter(Boolean).slice(0, 3).map((c) => '.' + c).join(' ')
+          : '';
+        const keyCss = pickMap(style, ['display', 'position', 'width', 'height', 'gap', 'justify-content', 'align-items']);
+        const boxModel = {
+          width: px(style.width),
+          height: px(style.height),
+          margin: [style.marginTop, style.marginRight, style.marginBottom, style.marginLeft].map(px).join(' '),
+          padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(px).join(' '),
+          border: style.border || '',
+        };
+        const fullCss = {
+          layout: pickMap(style, ['display', 'position', 'top', 'right', 'bottom', 'left', 'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height', 'flex-direction', 'justify-content', 'align-items', 'gap', 'grid-template-columns', 'grid-template-rows']),
+          spacing: pickMap(style, ['margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'border', 'border-radius', 'box-sizing']),
+          typography: pickMap(style, ['font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing', 'text-align', 'text-transform', 'color']),
+          visual: pickMap(style, ['background', 'background-color', 'box-shadow', 'opacity', 'overflow', 'z-index']),
+        };
+        return {
+          tag: el.tagName.toLowerCase(),
+          classSummary,
+          selectorPath: formatPath(el),
+          category: getCategory(el),
+          keyCss,
+          boxModel,
+          fullCss
+        };
+      }
+
+      function applyStyles() {
+        const prev = document.getElementById(STYLE_ID);
+        if (prev) prev.remove();
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent = \`
+          body[data-aicm-xray="on"] *[data-aicm-xray-kind] { outline-offset: -1px; }
+          body[data-aicm-xray="on"] *[data-aicm-xray-kind="container"] { outline: 1px dashed \${XRAY_COLORS.container}; }
+          body[data-aicm-xray="on"] *[data-aicm-xray-kind="text"] { outline: 1px dashed \${XRAY_COLORS.text}; }
+          body[data-aicm-xray="on"] *[data-aicm-xray-kind="media"] { outline: 1px dashed \${XRAY_COLORS.media}; }
+          body[data-aicm-xray="on"] *[data-aicm-xray-kind="interactive"] { outline: 1px dashed \${XRAY_COLORS.interactive}; cursor: crosshair !important; }
+          body[data-aicm-xray="on"] *[\${SELECTED_ATTR}] { box-shadow: inset 0 0 0 2px #60a5fa; }
+        \`;
+        document.head.appendChild(style);
+      }
+
+      function decorateElements() {
+        const all = document.body.querySelectorAll('*');
+        all.forEach((el) => {
+          if (!(el instanceof HTMLElement) || shouldIgnore(el)) return;
+          el.setAttribute('data-aicm-xray-kind', getCategory(el));
+        });
+      }
+
+      function post(type, payload) {
+        window.parent.postMessage({ type, payload }, '*');
+      }
+
+      function clearSelection() {
+        const selected = document.querySelector('*[' + SELECTED_ATTR + ']');
+        if (selected) selected.removeAttribute(SELECTED_ATTR);
+      }
+
+      applyStyles();
+      decorateElements();
+      document.body.setAttribute('data-aicm-xray', 'on');
+
+      let lastHoverAt = 0;
+      document.addEventListener('mousemove', (ev) => {
+        const now = Date.now();
+        if (now - lastHoverAt < 40) return;
+        lastHoverAt = now;
+        const el = ev.target instanceof HTMLElement ? ev.target : null;
+        if (!el || shouldIgnore(el)) return;
+        post('aicodemaster_xray_hover', serializeElement(el));
+      }, true);
+
+      document.addEventListener('click', (ev) => {
+        const el = ev.target instanceof HTMLElement ? ev.target : null;
+        if (!el || shouldIgnore(el)) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        clearSelection();
+        el.setAttribute(SELECTED_ATTR, '1');
+        post('aicodemaster_xray_select', serializeElement(el));
+      }, true);
+
+      const observer = new MutationObserver(() => {
+        window.requestAnimationFrame(decorateElements);
+      });
+      observer.observe(document.body, { childList: true, subtree: true, attributes: false });
+    })();
+  `;
+
   const srcDoc = `
     <html>
       <style>${css}</style>
@@ -759,6 +1016,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
       <style>${exercise.targetCss}</style>
       <body>${exercise.targetHtml}</body>
       ${hasJavaScript ? `<script>${exercise.targetJs}</script>` : ''}
+      ${shouldInjectXray ? `<script>${xrayScript}</script>` : ''}
     </html>
   ` : '';
 
@@ -907,7 +1165,7 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
   const targetPreviewColumn = (
     <div className={`${panelShellClass} flex flex-col bg-white transition-opacity duration-200 ${getGuidePanelClass('target')}`}>
       <div className="px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0">
-        <div className="relative pr-12">
+        <div className="relative pr-24">
           <div className="flex items-center gap-2">
             <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold leading-none text-white">
               3
@@ -915,23 +1173,105 @@ const StudentView = ({ onAdmin, onAuth, isAuthenticated, reloadToken }: { onAdmi
             <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">{targetPanelTitle}</span>
           </div>
           <p className="mt-0.5 text-[11px] text-zinc-300">{targetPanelHint}</p>
-          <button
-            type="button"
-            onClick={onAdmin}
-            className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex h-10 w-10 items-center justify-center rounded-md text-blue-300 hover:bg-zinc-800 hover:text-blue-200 transition-colors"
-            title={ui.adminPanel}
-            aria-label={ui.adminPanel}
-          >
-            <ArrowUpDown className="h-5 w-5" />
-          </button>
+          {!isXrayAvailable && (
+            <p className="mt-1 text-[10px] text-zinc-400">{ui.xrayDesktopOnlyHint || 'X-Ray is available on desktop.'}</p>
+          )}
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1">
+            {isXrayAvailable && (
+              <button
+                type="button"
+                onClick={() => setIsXrayEnabled((prev) => !prev)}
+                className={`inline-flex h-10 items-center justify-center gap-1 rounded-md px-2 transition-colors ${
+                  isXrayEnabled ? 'bg-blue-600 text-white hover:bg-blue-500' : 'text-blue-300 hover:bg-zinc-800 hover:text-blue-200'
+                }`}
+                title={`${ui.xrayModeLabel || 'X-Ray'}: ${isXrayEnabled ? (ui.xrayModeOn || 'ON') : (ui.xrayModeOff || 'OFF')}`}
+                aria-label={ui.xrayModeLabel || 'X-Ray'}
+              >
+                {isXrayEnabled ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                <span className="text-[10px] font-semibold uppercase tracking-wide">{ui.xrayModeLabel || 'X-Ray'}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onAdmin}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md text-blue-300 hover:bg-zinc-800 hover:text-blue-200 transition-colors"
+              title={ui.adminPanel}
+              aria-label={ui.adminPanel}
+            >
+              <ArrowUpDown className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
-      <div className="flex-1">
+      <div className="relative flex-1">
         <iframe
           title="target-preview"
           srcDoc={targetDoc}
+          ref={targetFrameRef}
           className="w-full h-full border-none"
         />
+        {shouldInjectXray && hoverXrayNode && (
+          <div className="pointer-events-none absolute left-3 top-3 z-20 max-w-[55%] rounded-md border border-zinc-700 bg-zinc-900/95 px-2 py-1 text-[10px] text-zinc-100 shadow-xl">
+            <p className="font-semibold text-blue-300">
+              {hoverXrayNode.tag}{hoverXrayNode.classSummary ? ` ${hoverXrayNode.classSummary}` : ''}
+            </p>
+            <p className="truncate text-zinc-300">{hoverXrayNode.selectorPath}</p>
+            <p className="text-zinc-400">
+              {Object.entries(hoverXrayNode.keyCss)
+                .slice(0, 3)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(' | ')}
+            </p>
+          </div>
+        )}
+        {shouldInjectXray && !selectedXrayNode && (
+          <div className="pointer-events-none absolute bottom-3 left-3 z-20 rounded-md border border-zinc-700 bg-zinc-900/90 px-2 py-1 text-[10px] text-zinc-300">
+            {ui.xrayHelpHint || 'Hover to inspect. Click an element to open full CSS.'}
+          </div>
+        )}
+        {shouldInjectXray && isXrayDrawerOpen && (
+          <div className="absolute right-0 top-0 bottom-0 z-30 w-[min(94%,360px)] border-l border-zinc-700 bg-zinc-950/98 p-3 text-zinc-100 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-widest text-blue-300">{ui.xrayDrawerTitle || 'X-Ray CSS Inspector'}</p>
+              <button
+                type="button"
+                onClick={() => setIsXrayDrawerOpen(false)}
+                className="rounded-md p-1 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+                aria-label={ui.close}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {!selectedXrayNode ? (
+              <p className="text-xs text-zinc-400">{ui.xrayEmptyState || 'Select an element in the Model panel to inspect CSS.'}</p>
+            ) : (
+              <div className="space-y-3 overflow-auto pr-1 text-xs h-[calc(100%-2rem)]">
+                <div className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
+                  <p className="font-semibold text-blue-300">{selectedXrayNode.tag}{selectedXrayNode.classSummary ? ` ${selectedXrayNode.classSummary}` : ''}</p>
+                  <p className="mt-1 break-words text-zinc-300">{selectedXrayNode.selectorPath}</p>
+                </div>
+                <div className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
+                  <p className="font-semibold text-emerald-300">Box model</p>
+                  <div className="mt-1 space-y-1 text-zinc-300">
+                    {Object.entries(selectedXrayNode.boxModel).map(([key, value]) => (
+                      <p key={key}><span className="text-zinc-400">{key}</span>: {value}</p>
+                    ))}
+                  </div>
+                </div>
+                {Object.entries(selectedXrayNode.fullCss).map(([group, entries]) => (
+                  <div key={group} className="rounded-md border border-zinc-700 bg-zinc-900/70 p-2">
+                    <p className="font-semibold capitalize text-amber-300">{group}</p>
+                    <div className="mt-1 space-y-1 text-zinc-300">
+                      {Object.entries(entries).map(([prop, value]) => (
+                        <p key={prop}><span className="text-zinc-400">{prop}</span>: {value || '-'}</p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
