@@ -125,6 +125,8 @@ type UiText = {
   statusInProgress: string;
   statusCompleted: string;
   userAccount: string;
+  adminGuestNoticeTitle: string;
+  adminGuestNoticeDescription: string;
   authLogin: string;
   authRegister: string;
   authFullName: string;
@@ -188,6 +190,8 @@ const EMPTY_UI_TEXT: UiText = {
   statusInProgress: '',
   statusCompleted: '',
   userAccount: '',
+  adminGuestNoticeTitle: '',
+  adminGuestNoticeDescription: '',
   authLogin: '',
   authRegister: '',
   authFullName: '',
@@ -1377,6 +1381,7 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
   const [lessons, setLessons] = useState<SettingsResponse['lessons']>([]);
   const [saving, setSaving] = useState(false);
   const [uiOverrides, setUiOverrides] = useState<Record<string, string>>({});
+  const isGuest = !getAuthToken();
   const ui = mergeUiText(uiOverrides);
 
   useEffect(() => {
@@ -1464,6 +1469,12 @@ const AdminView = ({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
 
         <div className="space-y-6 px-8 pb-4 min-h-0 overflow-y-auto flex-1">
           <div>
+            {isGuest && (
+              <div className="mb-4 rounded-xl border border-red-400 bg-red-500 p-3 text-white">
+                <p className="text-sm font-semibold text-white">{ui.adminGuestNoticeTitle}</p>
+                <p className="mt-1 text-xs text-red-50">{ui.adminGuestNoticeDescription}</p>
+              </div>
+            )}
             <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2">{ui.savedLessons}</label>
             <div className="space-y-2">
               {lessons.map((lesson) => {
